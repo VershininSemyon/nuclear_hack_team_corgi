@@ -1,0 +1,45 @@
+{
+  "chunk_sec": 26,
+  "models": [
+    {
+      "model": "GigaAM v3 (RU)",
+      "rtf": 0.04254223963650529,
+      "audio_sec": 195.88,
+      "decode_sec": 8.333173899998656,
+      "ram_weights_mb": 275.419136,
+      "ram_total_mb": 336.75264
+    },
+    {
+      "model": "Parakeet TDT 0.6B v3",
+      "rtf": 0.06380171074126302,
+      "audio_sec": 195.88,
+      "decode_sec": 12.4974790999986,
+      "ram_weights_mb": 723.726336,
+      "ram_total_mb": 988.491776
+    },
+    {
+      "model": "Whisper large-v3-turbo",
+      "rtf": 0.38236893455172577,
+      "audio_sec": 195.88,
+      "decode_sec": 74.89842689999205,
+      "ram_weights_mb": 1094.381568,
+      "ram_total_mb": 2288.361472
+    },
+    {
+      "model": "Whisper small",
+      "rtf": 0.34328211507042017,
+      "audio_sec": 195.88,
+      "decode_sec": 67.2421006999939,
+      "ram_weights_mb": 449.605632,
+      "ram_total_mb": 1233.850368
+    },
+    {
+      "model": "Zipformer-RU",
+      "rtf": 0.019164122421901512,
+      "audio_sec": 195.88,
+      "decode_sec": 3.7538683000020683,
+      "ram_weights_mb": 145.08032,
+      "ram_total_mb": 401.125376
+    }
+  ]
+}

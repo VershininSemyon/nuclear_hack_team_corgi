@@ -1,0 +1,264 @@
+# Kotlin-классы: текст + тайминги слов
+
+Готовые классы для Android. Один метод `transcribe()` принимает WAV, MP3 или
+MP4/M4A (из MP4 берётся первая звуковая дорожка) и возвращает текст и список
+слов с `start`/`end` в секундах. Промежуточный MP3 не создаётся: звуковая
+дорожка сразу декодируется в PCM.
+
+Это папка ветки **`transcription`**: здесь только код интеграции. Метрики,
+сравнение моделей и рекомендации — в
+[`../../transcription_leaderboard.md`](../../transcription_leaderboard.md).
+
+## Навигация
+
+| Что | Где |
+|---|---|
+| Лидерборд, методика, метрики | [`../../transcription_leaderboard.md`](../../transcription_leaderboard.md) |
+| Сырые результаты и примеры | [`../results/`](../results/) |
+| Скрипты бенчмарка | [`../scripts/`](../scripts/) |
+| Простой пример обёртки | [`../SherpaTranscriber.kt`](../SherpaTranscriber.kt) |
+
+## Быстрый старт
+
+```kotlin
+val asr: Transcriber = GigaAmTranscriber(
+    context = applicationContext,
+    modelDir = File(filesDir, "models/gigaam-v3"),
+    numThreads = 4,
+)
+
+val result = asr.transcribe(File("/sdcard/record.mp4"))
+
+println(result.text) // "привет как дела"
+result.words.forEach { w ->
+    println("${w.word}: ${w.start} .. ${w.end} с")
+}
+```
+
+Можно подать готовые сэмплы (моно, 16 кГц или любая другая частота — класс
+пересчитает сам):
+
+```kotlin
+val result = asr.transcribe(samples = floatArray, sampleRate = 48_000)
+```
+
+### Куски аудио по меткам
+
+Если нужны не только тайминги, но и само аудио каждого слова — вызовите
+`transcribeWithAudio()`. Он возвращает текст, слова и `chunks`: куски в том же
+порядке, что и слова, каждый задан двумя метками `start`/`end`.
+
+```kotlin
+val full = asr.transcribeWithAudio(File("/sdcard/record.mp4"))
+
+full.chunks.forEachIndexed { i, chunk ->
+    val word = full.words[i].word
+    println("$word: ${chunk.start} .. ${chunk.end} с, " +
+        "${chunk.samples.size} сэмплов")
+    // chunk.samples — FloatArray, моно 16 кГц, [-1, 1]
+}
+
+asr.close()
+```
+
+`chunks.size == words.size`, `chunks[i]` соответствует `words[i]`. Если
+тайминги пустые/вырожденные, кусок будет с пустым `samples`, но позиция в
+списке сохранится.
+
+Для произвольных отрезков (не обязательно слов) есть `AudioSlicer`:
+
+```kotlin
+val samples = AudioDecoder.decode(context, uri) // моно 16 кГц
+val pieces = AudioSlicer.slice(
+    samples = samples,
+    sampleRate = 16_000,
+    ranges = listOf(
+        TimeRange(0.5f, 1.8f),   // первая метка — начало, вторая — конец
+        TimeRange(2.2f, 4.0f),
+    ),
+)
+```
+
+`AudioSlicer.sliceWords(samples, 16000, result.words)` — то же самое, но
+диапазоны берутся из готовых слов. Если нужны только границы, без аудио:
+`AudioSlicer.timeRanges(result)` вернёт `List<TimeRange>` — по две метки на
+каждое слово. Границы округляются наружу и обрезаются по длине файла, чтобы не
+потерять край слова.
+
+`Transcriber` — общий интерфейс, поэтому модель можно менять без правок
+остального кода:
+
+```kotlin
+val asr: Transcriber = when (mode) {
+    Mode.FAST -> ZipformerRuTranscriber(context, File(filesDir, "models/zipformer-ru"))
+    Mode.MULTILINGUAL -> ParakeetTranscriber(context, File(filesDir, "models/parakeet"))
+    else -> GigaAmTranscriber(context, File(filesDir, "models/gigaam-v3"))
+}
+```
+
+## Классы
+
+| Класс | Модель | Размер | Особенности |
+|---|---|---|---|
+| `GigaAmTranscriber` | GigaAM v3 RNNT | 229 МБ | лучшее качество на русском |
+| `ZipformerRuTranscriber` | Zipformer-RU | 73 МБ | самый быстрый, лёгкий |
+| `ParakeetTranscriber` | Parakeet TDT 0.6B v3 | 670 МБ | 25 языков, пунктуация |
+| `WhisperTurboTranscriber` | Whisper large-v3-turbo | 1 ГБ | 99 языков, 28-с сегменты |
+| `WhisperSmallTranscriber` | Whisper small | 375 МБ | 99 языков, слабее на русском |
+
+Общие файлы:
+
+| Файл | Назначение |
+|---|---|
+| `Transcriber.kt` | интерфейс `Transcriber` |
+| `Models.kt` | `WordTimestamp`, `TranscriptionResult`, `TranscriptionWithAudio` |
+| `BaseSherpaTranscriber.kt` | декодирование, нарезка, сборка результата |
+| `AudioDecoder.kt` | WAV вручную, MP3/MP4/AAC через `MediaCodec` → 16 кГц моно |
+| `AudioChunker.kt` | нарезка ≤ 25/28 с по минимуму энергии |
+| `AudioSlicer.kt` | куски аудио по двум меткам: `TimeRange(start, end)` → `AudioSlice` |
+| `WordTimestamps.kt` | токены → слова (GigaAM char-level, `▁` BPE, Whisper) |
+
+## Что нужно подключить
+
+1. **Рантайм sherpa-onnx** (~7 МБ на ABI):
+   `libonnxruntime.so` и `libsherpa-onnx-jni.so` в
+   `app/src/main/jniLibs/arm64-v8a/`.
+2. **Kotlin API** из архива sherpa-onnx: файлы пакета
+   `com.k2fsa.sherpa.onnx` (их можно положить рядом с этим кодом).
+3. **Файлы модели** в `modelDir` (скачиваются скриптами из `../scripts/`).
+   Имена файлов — в KDoc каждого класса; int8-вариант предпочтителен.
+4. В `build.gradle.kts`:
+
+```kotlin
+android {
+    defaultConfig {
+        ndk { abiFilters += listOf("arm64-v8a") } // + "x86_64" для эмулятора
+    }
+    androidResources {
+        noCompress += listOf("onnx")
+    }
+}
+```
+
+Пакет этих файлов — `com.nuclearhack.transcription`. Если у вас другой,
+замените `package` в начале каждого `.kt`.
+
+### Whisper: точные тайминги
+
+Стандартный декодер Whisper в sherpa-onnx не отдаёт cross-attention, поэтому
+реальные тайминги токенов недоступны. Класс всё равно вернёт слова, но с
+`approximateTimestamps = true` (время разложено по длине токенов).
+
+Для точных таймингов положите рядом декодер, экспортированный с attention
+(можно скачать скриптом `../scripts/download_whisper_attention.py`):
+
+- turbo: [`cohearo/sherpa-onnx-whisper-large-v3-turbo-attention-int8`](https://huggingface.co/cohearo/sherpa-onnx-whisper-large-v3-turbo-attention-int8)
+  → `turbo-decoder-attention.int8.onnx` (энкодер и `tokens.txt` подходят от
+  обычной модели);
+- small: [`clairemcw/sherpa-onnx-whisper-small-attention`](https://huggingface.co/clairemcw/sherpa-onnx-whisper-small-attention)
+  → `small-decoder-attention.int8.onnx`.
+
+Класс выбирает файл с `-attention` первым, так что обычный декодер можно
+оставить на месте.
+
+## Как считаются тайминги
+
+1. Файл декодируется в моно 16 кГц.
+2. Длинная запись режется на сегменты: 25 с для GigaAM/Parakeet/Zipformer,
+   28 с для Whisper (жёсткий лимит sherpa-onnx — 30 с). Граница выбирается
+   в самой тихой 20-мс рамке второй половины сегмента, чтобы не разрезать
+   слово.
+3. Для каждого сегмента модель возвращает `tokens`, `timestamps` и
+   `durations` (секунды от начала сегмента).
+4. `WordTimestamps` склеивает токены в слова:
+   - GigaAM — посимвольно, пробел = граница слова;
+   - Zipformer/Parakeet — SentencePiece-маркер `▁` = начало слова;
+   - Whisper — ведущий пробел в BPE-куске = начало слова.
+5. К времени сегмента прибавляется его `offset`, поэтому `start`/`end` —
+   от начала исходного файла, а не от начала куска.
+
+Если у токена нет `duration`, конец слова берётся по времени следующего
+токена; для последнего токена — оценка по длине. Пунктуация приклеивается к
+предыдущему слову.
+
+## Тесты
+
+### JVM unit-тесты
+
+`src/test/kotlin/` — 23 теста на чистую логику, без Android:
+
+- `WordTimestampsTest` — границы слов, пунктуация, char-level GigaAM,
+  SentencePiece `▁`, Whisper с ведущими пробелами, спецтокены, пустые
+  тайминги, несколько слов в одном токене, offset;
+- `AudioSlicerTest` — границы, округление наружу, выход за файл, пустые
+  отрезки, обратный порядок меток, `sliceWords`, `timeRanges`;
+- `AudioChunkerTest` — короткое/пустое/тихое аудио, длинная запись,
+  пропуск тишины, сохранение offset, очень маленький `maxSeconds`.
+
+Запуск без Gradle (нужен `kotlinc` в PATH; JUnit и Hamcrest скачиваются
+один раз в `build/test-libs`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run_unit_tests.ps1
+```
+
+Если у вас уже есть Gradle-модуль, добавьте
+`testImplementation("junit:junit:4.13.2")` и запускайте те же файлы через
+`./gradlew test`.
+
+### Instrumentation-тест декодера
+
+`src/androidTest/kotlin/.../AudioDecoderInstrumentedTest.kt` проверяет
+`AudioDecoder` на реальном Android:
+
+- `sample.wav` — PCM WAV, 16 кГц, 3 с;
+- `sample.mp3` — MP3, 16 кГц, 3 с;
+- `sample.mp4` — MP4, где **видео-дорожка идёт первой**, а AAC-аудио второй;
+  тест проверяет, что выбирается аудио, а видео игнорируется.
+
+Ассеты лежат в `src/androidTest/assets/`. Это синтетический тон 440 Гц,
+3 секунды, 16 кГц моно — без внешних лицензий. В `build.gradle.kts` модуля:
+
+```kotlin
+android {
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+}
+```
+
+Запуск:
+
+```bash
+./gradlew connectedDebugAndroidTest
+```
+
+Тест проверяет длительность, отсутствие NaN, ненулевую громкость и диапазон
+сэмплов `[-1, 1]`. На эмуляторе MP3/AAC-декодеры обычно есть; на «голом»
+устройстве без кодека тест может быть пропущен/упасть — это ограничение
+`MediaCodec`, а не парсера WAV.
+
+## Ограничения
+
+- **Один экземпляр — один поток.** `transcribe()` синхронизирован; для
+  параллельной обработки создавайте отдельный экземпляр на поток (модели
+  тяжёлые, обычно это не нужно).
+- **WAV читается целиком в память** — для файлов в сотни мегабайт лучше
+  сконвертировать в MP3/M4A или подавать сэмплы.
+- **MP3/MP4** декодируются через `MediaCodec`; поддержка зависит от кодека
+  устройства (стандартные MP3/AAC работают везде).
+- **Whisper** в sherpa-onnx использует greedy-декодер без fallback: на тишине
+  и шуме возможны повторы. Для продакшена добавьте VAD и обрезку тишины.
+- **Тайминги — не karaoke-точность.** Ошибка порядка 50–150 мс; для субтитров
+  и подсветки слов этого достаточно, для фонетического анализа — нет.
+- **Whisper без attention-декодера** возвращает оценочные тайминги
+  (`approximateTimestamps = true`). Как включить точные — см. раздел
+  «Whisper: точные тайминги» выше.
+- **Модели не в репозитории** (несколько ГБ). Скачайте их скриптами и
+  положите в `modelDir`.
