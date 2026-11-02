@@ -77,7 +77,7 @@ internal object AudioChunker {
                 pos += frame
             }
 
-            val end = best.coerceIn(start + frame, start + maxLen)
+            val end = best.coerceIn(start + 1, start + maxLen)
             if (!isSilent(samples, start, end)) {
                 chunks.add(chunk(samples, start, end, sampleRate))
             }

@@ -110,7 +110,8 @@ val asr: Transcriber = when (mode) {
 
 | Файл | Назначение |
 |---|---|
-| `Transcriber.kt` | интерфейс, `WordTimestamp`, `TranscriptionResult` |
+| `Transcriber.kt` | интерфейс `Transcriber` |
+| `Models.kt` | `WordTimestamp`, `TranscriptionResult`, `TranscriptionWithAudio` |
 | `BaseSherpaTranscriber.kt` | декодирование, нарезка, сборка результата |
 | `AudioDecoder.kt` | WAV вручную, MP3/MP4/AAC через `MediaCodec` → 16 кГц моно |
 | `AudioChunker.kt` | нарезка ≤ 25/28 с по минимуму энергии |
@@ -179,6 +180,69 @@ android {
 Если у токена нет `duration`, конец слова берётся по времени следующего
 токена; для последнего токена — оценка по длине. Пунктуация приклеивается к
 предыдущему слову.
+
+## Тесты
+
+### JVM unit-тесты
+
+`src/test/kotlin/` — 23 теста на чистую логику, без Android:
+
+- `WordTimestampsTest` — границы слов, пунктуация, char-level GigaAM,
+  SentencePiece `▁`, Whisper с ведущими пробелами, спецтокены, пустые
+  тайминги, несколько слов в одном токене, offset;
+- `AudioSlicerTest` — границы, округление наружу, выход за файл, пустые
+  отрезки, обратный порядок меток, `sliceWords`, `timeRanges`;
+- `AudioChunkerTest` — короткое/пустое/тихое аудио, длинная запись,
+  пропуск тишины, сохранение offset, очень маленький `maxSeconds`.
+
+Запуск без Gradle (нужен `kotlinc` в PATH; JUnit и Hamcrest скачиваются
+один раз в `build/test-libs`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run_unit_tests.ps1
+```
+
+Если у вас уже есть Gradle-модуль, добавьте
+`testImplementation("junit:junit:4.13.2")` и запускайте те же файлы через
+`./gradlew test`.
+
+### Instrumentation-тест декодера
+
+`src/androidTest/kotlin/.../AudioDecoderInstrumentedTest.kt` проверяет
+`AudioDecoder` на реальном Android:
+
+- `sample.wav` — PCM WAV, 16 кГц, 3 с;
+- `sample.mp3` — MP3, 16 кГц, 3 с;
+- `sample.mp4` — MP4, где **видео-дорожка идёт первой**, а AAC-аудио второй;
+  тест проверяет, что выбирается аудио, а видео игнорируется.
+
+Ассеты лежат в `src/androidTest/assets/`. Это синтетический тон 440 Гц,
+3 секунды, 16 кГц моно — без внешних лицензий. В `build.gradle.kts` модуля:
+
+```kotlin
+android {
+    defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+}
+```
+
+Запуск:
+
+```bash
+./gradlew connectedDebugAndroidTest
+```
+
+Тест проверяет длительность, отсутствие NaN, ненулевую громкость и диапазон
+сэмплов `[-1, 1]`. На эмуляторе MP3/AAC-декодеры обычно есть; на «голом»
+устройстве без кодека тест может быть пропущен/упасть — это ограничение
+`MediaCodec`, а не парсера WAV.
 
 ## Ограничения
 

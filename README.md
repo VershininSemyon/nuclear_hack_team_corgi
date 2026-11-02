@@ -10,6 +10,7 @@ Android/Kotlin и готовый код интеграции. Всё работ�
 |---|---|
 | **Лидерборд:** качество, скорость, память, методика, что такое WER | [`transcription_leaderboard.md`](transcription_leaderboard.md) |
 | **Kotlin-классы:** `transcribe()` → текст + тайминги слов, `transcribeWithAudio()` → ещё и куски аудио; WAV/MP3/MP4 | [`transcription_models/kotlin/transcribers/`](transcription_models/kotlin/transcribers/) |
+| **Тесты:** 23 JVM unit-теста + instrumentation-тест декодера | [`transcribers/README.md#тесты`](transcription_models/kotlin/transcribers/README.md#тесты) |
 | Подключение sherpa-onnx, jniLibs, VAD, грабли | [`transcription_models/kotlin/README.md`](transcription_models/kotlin/README.md) |
 | Сырые результаты: JSON, CSV, график, примеры | [`transcription_models/results/`](transcription_models/results/) |
 | Скрипты бенчмарка | [`transcription_models/scripts/`](transcription_models/scripts/) |
