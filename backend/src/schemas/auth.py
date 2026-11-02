@@ -1,0 +1,12 @@
+
+from pydantic import BaseModel
+
+
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
+
+
+class JWTTokenPairResponseSchema(BaseModel):
+    access: str
+    refresh: str
