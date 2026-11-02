@@ -4,6 +4,11 @@
 Это C++/ONNX Runtime библиотека с официальным Kotlin API (`com.k2fsa.sherpa.onnx`).
 Runtime занимает ~7 МБ на ABI, модели лежат отдельно.
 
+> **Готовые классы с таймингами слов:** [`transcribers/`](transcribers/).
+> Там `GigaAmTranscriber`, `ZipformerRuTranscriber`, `ParakeetTranscriber`,
+> `WhisperTurboTranscriber`, `WhisperSmallTranscriber` и общий интерфейс
+> `Transcriber`. Ниже — низкоуровневая инструкция по рантайму и грабли.
+
 ## 1. Runtime
 
 ```bash
