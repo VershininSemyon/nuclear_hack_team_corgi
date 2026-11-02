@@ -33,8 +33,6 @@ println(result.text) // "привет как дела"
 result.words.forEach { w ->
     println("${w.word}: ${w.start} .. ${w.end} с")
 }
-
-asr.close()
 ```
 
 Можно подать готовые сэмплы (моно, 16 кГц или любая другая частота — класс
@@ -43,6 +41,49 @@ asr.close()
 ```kotlin
 val result = asr.transcribe(samples = floatArray, sampleRate = 48_000)
 ```
+
+### Куски аудио по меткам
+
+Если нужны не только тайминги, но и само аудио каждого слова — вызовите
+`transcribeWithAudio()`. Он возвращает текст, слова и `chunks`: куски в том же
+порядке, что и слова, каждый задан двумя метками `start`/`end`.
+
+```kotlin
+val full = asr.transcribeWithAudio(File("/sdcard/record.mp4"))
+
+full.chunks.forEachIndexed { i, chunk ->
+    val word = full.words[i].word
+    println("$word: ${chunk.start} .. ${chunk.end} с, " +
+        "${chunk.samples.size} сэмплов")
+    // chunk.samples — FloatArray, моно 16 кГц, [-1, 1]
+}
+
+asr.close()
+```
+
+`chunks.size == words.size`, `chunks[i]` соответствует `words[i]`. Если
+тайминги пустые/вырожденные, кусок будет с пустым `samples`, но позиция в
+списке сохранится.
+
+Для произвольных отрезков (не обязательно слов) есть `AudioSlicer`:
+
+```kotlin
+val samples = AudioDecoder.decode(context, uri) // моно 16 кГц
+val pieces = AudioSlicer.slice(
+    samples = samples,
+    sampleRate = 16_000,
+    ranges = listOf(
+        TimeRange(0.5f, 1.8f),   // первая метка — начало, вторая — конец
+        TimeRange(2.2f, 4.0f),
+    ),
+)
+```
+
+`AudioSlicer.sliceWords(samples, 16000, result.words)` — то же самое, но
+диапазоны берутся из готовых слов. Если нужны только границы, без аудио:
+`AudioSlicer.timeRanges(result)` вернёт `List<TimeRange>` — по две метки на
+каждое слово. Границы округляются наружу и обрезаются по длине файла, чтобы не
+потерять край слова.
 
 `Transcriber` — общий интерфейс, поэтому модель можно менять без правок
 остального кода:
@@ -73,6 +114,7 @@ val asr: Transcriber = when (mode) {
 | `BaseSherpaTranscriber.kt` | декодирование, нарезка, сборка результата |
 | `AudioDecoder.kt` | WAV вручную, MP3/MP4/AAC через `MediaCodec` → 16 кГц моно |
 | `AudioChunker.kt` | нарезка ≤ 25/28 с по минимуму энергии |
+| `AudioSlicer.kt` | куски аудио по двум меткам: `TimeRange(start, end)` → `AudioSlice` |
 | `WordTimestamps.kt` | токены → слова (GigaAM char-level, `▁` BPE, Whisper) |
 
 ## Что нужно подключить

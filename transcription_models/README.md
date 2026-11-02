@@ -10,7 +10,7 @@
 | Что | Где |
 |---|---|
 | **Главный документ:** лидерборд, методика, разбор метрик, примеры, рекомендации | [`../transcription_leaderboard.md`](../transcription_leaderboard.md) |
-| **Kotlin-классы** для Android (`transcribe()` → текст + `start`/`end` слов) | [`kotlin/transcribers/`](kotlin/transcribers/) |
+| **Kotlin-классы** для Android (`transcribe()` → текст + `start`/`end` слов, `transcribeWithAudio()` → ещё и куски аудио) | [`kotlin/transcribers/`](kotlin/transcribers/) |
 | Инструкция по подключению sherpa-onnx и грабли | [`kotlin/README.md`](kotlin/README.md) |
 | Сырые результаты: JSON, CSV, график, примеры | [`results/`](results/) |
 | Скрипты бенчмарка | [`scripts/`](scripts/) |

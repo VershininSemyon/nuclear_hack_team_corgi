@@ -9,7 +9,7 @@ Android/Kotlin и готовый код интеграции. Всё работ�
 | Что | Где |
 |---|---|
 | **Лидерборд:** качество, скорость, память, методика, что такое WER | [`transcription_leaderboard.md`](transcription_leaderboard.md) |
-| **Kotlin-классы:** `transcribe()` → текст + тайминги слов, WAV/MP3/MP4 | [`transcription_models/kotlin/transcribers/`](transcription_models/kotlin/transcribers/) |
+| **Kotlin-классы:** `transcribe()` → текст + тайминги слов, `transcribeWithAudio()` → ещё и куски аудио; WAV/MP3/MP4 | [`transcription_models/kotlin/transcribers/`](transcription_models/kotlin/transcribers/) |
 | Подключение sherpa-onnx, jniLibs, VAD, грабли | [`transcription_models/kotlin/README.md`](transcription_models/kotlin/README.md) |
 | Сырые результаты: JSON, CSV, график, примеры | [`transcription_models/results/`](transcription_models/results/) |
 | Скрипты бенчмарка | [`transcription_models/scripts/`](transcription_models/scripts/) |
@@ -46,6 +46,16 @@ val result = asr.transcribe(File("/sdcard/record.mp4")) // WAV / MP3 / MP4
 println(result.text)
 result.words.forEach { w ->
     println("${w.word}: ${w.start} .. ${w.end} с")
+}
+```
+
+Если нужны сами куски аудио по словам:
+
+```kotlin
+val full = asr.transcribeWithAudio(File("/sdcard/record.mp4"))
+full.chunks.forEachIndexed { i, chunk ->
+    // chunk.start / chunk.end — две метки, chunk.samples — PCM 16 кГц моно
+    println("${full.words[i].word}: ${chunk.start} .. ${chunk.end}")
 }
 asr.close()
 ```

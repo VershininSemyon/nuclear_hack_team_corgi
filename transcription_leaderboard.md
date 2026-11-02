@@ -378,6 +378,11 @@ asr.close()
 `WordTimestamps` собирает слова из токенов и добавляет смещение сегмента,
 поэтому тайминги считаются от начала исходного файла.
 
+Если нужны сами куски аудио, а не только метки, используйте
+`transcribeWithAudio()`: он вернёт `chunks` в том же порядке, что и `words`,
+каждый кусок — две метки `start`/`end` и `FloatArray` 16 кГц моно. Для
+произвольных отрезков есть `AudioSlicer.slice(samples, 16000, ranges)`.
+
 Что нужно:
 
 1. Runtime sherpa-onnx (~7 МБ на ABI): `libonnxruntime.so` + `libsherpa-onnx-jni.so`

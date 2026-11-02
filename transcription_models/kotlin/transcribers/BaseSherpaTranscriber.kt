@@ -48,6 +48,37 @@ abstract class BaseSherpaTranscriber(
     override fun transcribe(uri: Uri): TranscriptionResult =
         transcribe(AudioDecoder.decode(context, uri))
 
+    override fun transcribeWithAudio(file: File): TranscriptionWithAudio =
+        transcribeWithAudio(AudioDecoder.decode(context, file))
+
+    override fun transcribeWithAudio(uri: Uri): TranscriptionWithAudio =
+        transcribeWithAudio(AudioDecoder.decode(context, uri))
+
+    @Synchronized
+    override fun transcribeWithAudio(samples: FloatArray, sampleRate: Int): TranscriptionWithAudio {
+        require(sampleRate > 0) { "sampleRate должен быть > 0" }
+
+        val mono16k = if (sampleRate == AudioDecoder.TARGET_SAMPLE_RATE) {
+            samples
+        } else {
+            AudioDecoder.resample(samples, sampleRate, AudioDecoder.TARGET_SAMPLE_RATE)
+        }
+
+        val result = transcribe(mono16k, AudioDecoder.TARGET_SAMPLE_RATE)
+        val chunks = AudioSlicer.sliceWords(
+            samples = mono16k,
+            sampleRate = AudioDecoder.TARGET_SAMPLE_RATE,
+            words = result.words,
+        )
+
+        return TranscriptionWithAudio(
+            text = result.text,
+            words = result.words,
+            chunks = chunks,
+            approximateTimestamps = result.approximateTimestamps,
+        )
+    }
+
     @Synchronized
     override fun transcribe(samples: FloatArray, sampleRate: Int): TranscriptionResult {
         require(sampleRate > 0) { "sampleRate должен быть > 0" }
