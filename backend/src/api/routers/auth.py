@@ -1,8 +1,8 @@
 
 from fastapi import APIRouter, Cookie, HTTPException, Response, status
 
-from api.dependencies import AuthServiceDep
-from schemas.auth import JWTTokenPairResponseSchema, UserLoginSchema
+from src.api.dependencies import AuthServiceDep
+from src.schemas.auth import JWTTokenPairResponseSchema, UserLoginSchema
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 

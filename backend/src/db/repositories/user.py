@@ -1,7 +1,7 @@
 
 
-from db.repositories.base import BaseRepository
-from models.user import UserORM
+from src.db.repositories.base import BaseRepository
+from src.models.user import UserORM
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

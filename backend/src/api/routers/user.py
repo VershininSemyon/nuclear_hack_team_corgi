@@ -3,8 +3,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Response, status
 
-from api.dependencies import CurrentUserDep, UserServiceDep
-from schemas.user import UserCreateSchema, UserReadSchema, UserUpdateSchema
+from src.api.dependencies import CurrentUserDep, UserServiceDep
+from src.schemas.user import UserCreateSchema, UserReadSchema, UserUpdateSchema
 
 user_router = APIRouter(prefix="/users", tags=["Users"])
 

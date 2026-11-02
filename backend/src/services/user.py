@@ -1,8 +1,8 @@
 
-from db.unitofwork import UnitOfWork
-from exceptions.user import EmailAlreadyExistsError, UsernameAlreadyExistsError
-from integrations.hashing import hash_password
-from schemas.user import UserCreateSchema, UserReadSchema, UserUpdateSchema
+from src.db.unitofwork import UnitOfWork
+from src.exceptions.user import EmailAlreadyExistsError, UsernameAlreadyExistsError
+from src.integrations.hashing import hash_password
+from src.schemas.user import UserCreateSchema, UserReadSchema, UserUpdateSchema
 
 
 class UserService:

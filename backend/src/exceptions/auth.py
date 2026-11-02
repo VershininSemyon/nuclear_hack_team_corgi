@@ -1,5 +1,5 @@
 
-from exceptions.base import AppError
+from src.exceptions.base import AppError
 
 
 class AuthError(AppError):

@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-from config.settings import settings
-from exceptions.auth import InvalidTokenError, TokenExpiredError
+from src.config.settings import settings
+from src.exceptions.auth import InvalidTokenError, TokenExpiredError
 
 
 def create_access_token(data: dict) -> str:

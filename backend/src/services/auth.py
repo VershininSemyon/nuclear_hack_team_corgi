@@ -1,10 +1,10 @@
 
-from db.unitofwork import UnitOfWork
-from exceptions.auth import InvalidPasswordError, InvalidTokenTypeError, UserNotFoundError
-from integrations.hashing import verify_password
-from integrations.jwt import create_access_token, create_refresh_token, decode_token
-from schemas.auth import JWTTokenPairResponseSchema, UserLoginSchema
-from schemas.user import UserReadSchema
+from src.db.unitofwork import UnitOfWork
+from src.exceptions.auth import InvalidPasswordError, InvalidTokenTypeError, UserNotFoundError
+from src.integrations.hashing import verify_password
+from src.integrations.jwt import create_access_token, create_refresh_token, decode_token
+from src.schemas.auth import JWTTokenPairResponseSchema, UserLoginSchema
+from src.schemas.user import UserReadSchema
 
 
 class AuthService:

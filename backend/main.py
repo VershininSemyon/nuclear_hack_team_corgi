@@ -5,12 +5,12 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from src.config.settings import settings
+from src.db.database import engine
+from src.exceptions.base import AppError
 
-from api.routers.auth import auth_router
-from api.routers.user import user_router
-from config.settings import settings
-from db.database import engine
-from exceptions.base import AppError
+from src.api.routers.auth import auth_router
+from src.api.routers.user import user_router
 
 
 @asynccontextmanager
@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, root_path="/api")
 
 if settings.CORS_ORIGINS:
     app.add_middleware(

@@ -3,11 +3,11 @@ from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, status
 
-from db.database import async_session_factory
-from db.unitofwork import UnitOfWork
-from schemas.user import UserReadSchema
-from services.auth import AuthService
-from services.user import UserService
+from src.db.database import async_session_factory
+from src.db.unitofwork import UnitOfWork
+from src.schemas.user import UserReadSchema
+from src.services.auth import AuthService
+from src.services.user import UserService
 
 
 def get_uow() -> UnitOfWork:

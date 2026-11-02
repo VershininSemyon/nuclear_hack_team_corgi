@@ -1,7 +1,7 @@
 
 import bcrypt
 
-from config.settings import settings
+from src.config.settings import settings
 
 
 def hash_password(password: str) -> str:

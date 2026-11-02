@@ -1,5 +1,5 @@
 
-from db.repositories.user import UserRepository
+from src.db.repositories.user import UserRepository
 
 
 class UnitOfWork:
