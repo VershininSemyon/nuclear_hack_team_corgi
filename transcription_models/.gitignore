@@ -1,0 +1,5 @@
+models/
+data/
+results/transcripts.jsonl
+__pycache__/
+*.part
