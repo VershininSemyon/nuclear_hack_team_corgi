@@ -11,7 +11,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.example.baseapp.ui.TranscriptionScreen
+import com.example.baseapp.ui.AppNavHost
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             BaseAppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    TranscriptionScreen()
+                    AppNavHost()
                 }
             }
         }

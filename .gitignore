@@ -58,6 +58,13 @@ captures/
 .externalNativeBuild/
 .cxx/
 
+# Heavy third-party / model binaries (downloaded by gradle or scripts)
+android/app/libs/*.aar
+android/app/libs/*.so
+android/app/src/main/assets/models/
+*.onnx
+*.tar.bz2
+
 # Signing keys and configuration
 *.jks
 *.keystore

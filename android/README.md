@@ -1,116 +1,158 @@
 # Расшифровка диалога (Android)
 
-Локальное приложение для расшифровки аудиозаписей разговоров: загрузка файла или
-запись с микрофона, кнопка «Распознать», вывод текста, реплик по говорящим и
-таймкодов каждого слова.
+Локальное приложение для расшифровки аудиозаписей: загрузка файла или запись с
+микрофона, кнопка «Распознать», текст, одна реплика «Спикер 1», слова с
+таймкодами, сохранение результатов и редактор.
 
-Сейчас включён **демо-режим**: реальная модель не подключена, `DemoTranscriber`
-возвращает тестовый диалог. Приложение собирается и запускается без AAR и без
-файлов моделей.
+Распознавание выполняется **на устройстве** моделью GigaAM v3 RNNT через
+sherpa-onnx. Аудио никуда не отправляется. Модель скачивается отдельно и
+хранится в `filesDir/models/gigaam-v3/`; в APK и Git она не входит.
 
-## Что уже есть
-
-- выбор аудиофайла через системный файловый менеджер (SAF, без permissions);
-- запись с микрофона в WAV: 16 kHz, mono, PCM 16 bit;
-- запрос `RECORD_AUDIO` во время выполнения;
-- отображение имени файла, длительности и размера;
-- прогресс распознавания;
-- полный текст расшифровки с копированием в буфер обмена;
-- реплики с меткой говорящего и диапазоном времени;
-- список слов с `startMs` / `endMs`;
-- обработка ошибок без падения приложения.
-
-## Куда вставлять свой транскрибер
-
-1. Откройте `app/src/main/java/com/example/baseapp/transcriber/Transcriber.kt`.
-2. Реализуйте интерфейс `Transcriber`:
-
-```kotlin
-class MyTranscriber(private val context: Context) : Transcriber {
-    override suspend fun transcribe(
-        audioPath: String,
-        onProgress: (Float) -> Unit,
-    ): TranscriptionResult {
-        // 1. Прочитать/декодировать audioPath.
-        // 2. Запустить модель.
-        // 3. Вернуть текст и слова с таймкодами.
-        return TranscriptionResult(
-            text = "Полный текст",
-            words = listOf(
-                WordTimestamp("Привет", startMs = 0, endMs = 350, speaker = "Спикер 1"),
-                WordTimestamp("мир", startMs = 350, endMs = 700, speaker = "Спикер 1"),
-            ),
-            segments = listOf(
-                TranscriptSegment(
-                    speaker = "Спикер 1",
-                    startMs = 0,
-                    endMs = 700,
-                    text = "Привет мир",
-                    words = emptyList(),
-                ),
-            ),
-        )
-    }
-}
-```
-
-3. В `TranscriberFactory.kt` замените одну строку:
-
-```kotlin
-return MyTranscriber(context)
-```
-
-Больше ничего менять не нужно: экран сам покажет текст, спикеров и таймкоды.
-
-## Запуск
-
-### Вариант 1 — Android Studio (проще всего)
-
-1. Установите Android Studio и JDK 17 (обычно идёт вместе с Android Studio).
-2. `File → Open` → выберите папку `android` (там, где лежит `settings.gradle.kts`).
-3. Дождитесь **Gradle Sync**.
-4. `Tools → Device Manager` → создайте эмулятор (например, Pixel 6, API 34).
-5. Запустите эмулятор и нажмите **Run ▶**.
-
-### Вариант 2 — VS Code + терминал + эмулятор
-
-VS Code сам по себе не запускает Android-эмулятор; удобнее держать VS Code для
-редактирования, а сборку и эмулятор запускать из встроенного терминала.
-
-Нужно установить:
-
-- JDK 17;
-- Android SDK command-line tools, platform-tools, emulator;
-- Gradle 8.7+ (или один раз создать wrapper командой `gradle wrapper --gradle-version 8.7`).
-
-Пример для Linux:
-
-```bash
-# 1. Пакеты SDK (пути зависят от установки Android SDK)
-sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" \
-  "emulator" "system-images;android-34;google_apis;x86_64"
-
-# 2. Создать и запустить эмулятор
-avdmanager create avd -n Pixel_API_34 \
-  -k "system-images;android-34;google_apis;x86_64" -d pixel_6
-emulator -avd Pixel_API_34
-
-# 3. В другом терминале — сборка и установка
-cd ".../android"
-gradle :app:installDebug
-
-# 4. Запуск приложения
+# Запуск
+./gradlew installDebug
 adb shell am start -n com.example.baseapp/.MainActivity
 
-# 5. Логи
+## Возможности
+
+- строгий импорт только **WAV, MP3 и MP4** через SAF;
+- MP4 читается только по аудиодорожке, видео игнорируется;
+- проверка расширения, MIME, сигнатуры и возможности декодирования;
+- отдельные сообщения для неподдерживаемого формата, повреждённого файла,
+  файла без аудиодорожки и пустого файла;
+- декодирование в моно 16 кГц без промежуточных MP3;
+- запись с микрофона в WAV: 16 кГц, моно, PCM 16 бит;
+- установка модели GigaAM v3: скачивание официального архива или выбор
+  `.tar.bz2` вручную, проверка SHA-256 и распаковка;
+- прогресс распознавания через `Transcriber.onProgress`;
+- одна реплика «Спикер 1» без имитации диаризации;
+- сохранение расшифровок в Room: название, текст, исходный текст ASR,
+  аудиофайл, формат, язык, слова и таймкоды, даты создания/изменения;
+- экран «Мои расшифровки» с реактивным списком, открытием и удалением;
+- редактор: длинный текст, изменение названия, сохранение/отмена, предупреждение
+  о несохранённых изменениях, восстановление черновика;
+- при ручном редактировании меняется только `text`; `originalText`, слова и
+  таймкоды остаются от исходного ASR, о чём явно предупреждает интерфейс.
+
+## Требования
+
+- JDK 17;
+- Android SDK 34 и build-tools 34.0.0;
+- устройство/эмулятор с ABI `arm64-v8a` или `x86_64`;
+- ~250 МБ свободного места для модели.
+
+## Сборка и тесты
+
+```bash
+cd android
+./gradlew test                 # JVM-тесты
+./gradlew assembleDebug        # APK
+./gradlew connectedDebugAndroidTest  # тесты на устройстве/эмуляторе
+```
+
+`connectedDebugAndroidTest` проверяет декодирование WAV/MP3/MP4, отказ для
+подделанных/повреждённых/пустых файлов, Room-хранилище и реальное распознавание.
+Тест реального распознавания выполняется только при установленной модели, иначе
+он помечается пропущенным.
+
+## Модель GigaAM v3
+
+Официальный архив:
+`sherpa-onnx-nemo-transducer-giga-am-v3-russian-2025-12-16.tar.bz2`
+(≈160 МБ). Приложение скачивает его с GitHub Releases, проверяет SHA-256,
+распаковывает `encoder.int8.onnx`, `decoder.onnx`, `joiner.onnx`, `tokens.txt`
+в `filesDir/models/gigaam-v3/`.
+
+Установить можно двумя способами:
+
+1. На экране распознавания нажать «Скачать модель».
+2. Нажать «Из файла» и выбрать заранее скачанный `.tar.bz2`.
+
+Для ручной установки через adb (полезно для тестов) файлы можно положить в
+`/data/local/tmp/gigaam/`, а затем скопировать через `run-as`:
+
+```bash
+adb shell run-as com.example.baseapp mkdir -p files/models/gigaam-v3
+adb shell run-as com.example.baseapp cp /data/local/tmp/gigaam/encoder.int8.onnx \
+  files/models/gigaam-v3/encoder.int8.onnx
+# аналогично decoder.onnx, joiner.onnx, tokens.txt
+```
+
+Важно: GigaAM использует **64 mel-бина** (не 80, как большинство NeMo-моделей).
+Это настроено в `SherpaEngine`; при 80 бинах модель загружается, но возвращает
+пустой текст.
+
+## Архитектура
+
+```text
+app/src/main/java/com/example/baseapp/
+├── BaseApp.kt                      — Application и AppContainer
+├── MainActivity.kt                 — Activity и тема
+├── audio/
+│   ├── AudioFormat.kt              — WAV/MP3/MP4
+│   ├── AudioFormatDetector.kt      — расширение + MIME + сигнатура
+│   ├── AudioFileValidator.kt       — проверка файла перед импортом
+│   ├── AudioDecoder.kt             — WAV/MP3/MP4 → моно 16 кГц FloatArray
+│   ├── AudioExceptions.kt          — пользовательские ошибки
+│   ├── AudioFileStore.kt           — импорт SAF и метаданные
+│   └── WavRecorder.kt              — запись WAV с микрофона
+├── transcriber/
+│   ├── Transcriber.kt              — контракт и модели результата
+│   ├── TranscriberFactory.kt       — создание GigaAmTranscriber
+│   ├── GigaAmTranscriber.kt        — адаптер к существующему контракту
+│   ├── TranscriptionResultBuilder.kt — одна реплика «Спикер 1»
+│   ├── model/                      — файлы, загрузка и установка модели
+│   └── sherpa/                     — sherpa-onnx, чанки, слова/таймкоды
+├── data/
+│   ├── db/                         — Room Entity/DAO/Database
+│   ├── TranscriptRepository.kt     — сохранение, список, редактирование
+│   ├── StoredTranscript.kt         — доменные модели
+│   └── TranscriptDraftStore.kt     — черновик несохранённого текста
+└── ui/
+    ├── AppNavHost.kt               — навигация
+    ├── TranscriptionScreen.kt      — распознавание
+    ├── transcription/              — ViewModel экрана
+    ├── library/                    — «Мои расшифровки»
+    └── editor/                     — редактор и его ViewModel
+```
+
+Слова и сегменты хранятся в отдельных таблицах `transcript_words` и
+`transcript_segments`, а не в JSON: так таймкоды типизированы и индексируются.
+Схема Room экспортируется в `app/schemas`.
+
+## sherpa-onnx
+
+AAR `sherpa-onnx-2.0.1.aar` не публикуется в Maven Central. Gradle-задача
+`downloadSherpaOnnx` скачивает его в `app/libs/` при первой сборке; файл
+исключён из Git. Поддерживаются `arm64-v8a` и `x86_64`.
+
+## Запуск в Android Studio / VS Code
+
+### Android Studio
+
+1. `File → Open` → выберите папку `android` (там, где лежит `settings.gradle.kts`).
+2. Дождитесь Gradle Sync.
+3. `Tools → Device Manager` → создайте эмулятор (например, Pixel 7, API 34+).
+4. Запустите эмулятор и нажмите **Run ▶**.
+
+### VS Code + терминал
+
+```bash
+sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" \
+  "emulator" "system-images;android-34;google_apis;x86_64"
+avdmanager create avd -n Pixel_API_34 \
+  -k "system-images;android-34;google_apis;x86_64" -d pixel_7
+emulator -avd Pixel_API_34
+
+# в другом терминале
+cd ".../android"
+./gradlew installDebug
+adb shell am start -n com.example.baseapp/.MainActivity
 adb logcat | grep -i baseapp
 ```
 
-Проверка, что эмулятор виден: `adb devices`.
-
-Если в эмуляторе не работает микрофон, откройте
-`Extended Controls → Microphone → Virtual microphone uses host audio input`.
-Тестовый аудиофайл можно заранее положить в эмулятор:
+Проверка устройства: `adb devices`.
+Если в эмуляторе не работает микрофон: `Extended Controls → Microphone`.
+Тестовый файл можно положить в эмулятор:
 
 ```bash
 adb push sample.mp3 /sdcard/Download/
@@ -118,35 +160,10 @@ adb push sample.mp3 /sdcard/Download/
 
 и выбрать его в приложении кнопкой «Загрузить».
 
-Расширения VS Code (по желанию): **Kotlin** (fwcd), **Gradle for Java** (Microsoft).
-Официальной интеграции Android-эмулятора в VS Code нет — используйте команды выше
-или Android Studio.
-
-## Структура
-
-```text
-app/src/main/java/com/example/baseapp/
-├── MainActivity.kt                 — Activity и тема
-├── audio/
-│   ├── AudioFileStore.kt           — импорт файла, метаданные
-│   └── WavRecorder.kt              — запись WAV с микрофона
-├── transcriber/
-│   ├── Transcriber.kt              — интерфейс и модели результата
-│   ├── DemoTranscriber.kt          — тестовая реализация
-│   └── TranscriberFactory.kt       — точка подключения вашего класса
-└── ui/
-    ├── TranscriptionScreen.kt      — состояние экрана
-    └── TranscriptionComponents.kt  — карточки, реплики, таймкоды
-```
-
-`app/src/main/java-sherpa/` содержит старую заготовку `SherpaAsr`. Она
-компилируется только при наличии `app/libs/sherpa-onnx.aar` и не влияет на
-демо-сборку.
-
 ## Примечания
 
-- Приложение ничего не отправляет в сеть: `INTERNET` не запрашивается.
-- Для записи нужен только `RECORD_AUDIO`.
-- Модели и AAR не скачиваются автоматически; инструкции — в
-  `app/libs/README.md` и `app/src/main/assets/README.md`.
+- Аудио и расшифровки остаются на устройстве.
+- `INTERNET` нужен только для скачивания модели; распознавание работает офлайн.
+- Для записи нужен `RECORD_AUDIO`.
+- Модели и AAR не коммитятся; тяжёлые бинарники исключены в `.gitignore`.
 - Gradle wrapper в репозиторий не добавлен.
