@@ -1,6 +1,46 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
+}
+
+val sherpaVersion = "2.0.1"
+val sherpaAar = layout.projectDirectory.file("libs/sherpa-onnx-$sherpaVersion.aar")
+
+/**
+ * sherpa-onnx не публикуется в Maven Central. Скачиваем официальный AAR
+ * из GitHub Releases один раз и кладём в app/libs (файл исключён из Git).
+ */
+val downloadSherpaOnnx = tasks.register("downloadSherpaOnnx") {
+    description = "Downloads the official sherpa-onnx Android AAR if it is missing."
+    group = "build setup"
+    outputs.file(sherpaAar)
+
+    doLast {
+        val target = sherpaAar.asFile
+        if (target.isFile && target.length() > 1_000_000L) return@doLast
+
+        target.parentFile.mkdirs()
+        val url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/" +
+            "v$sherpaVersion/sherpa-onnx-$sherpaVersion.aar"
+        logger.lifecycle("Downloading $url")
+        val temporary = File(target.parentFile, "${target.name}.part")
+        try {
+            URI(url).toURL().openStream().use { input ->
+                temporary.outputStream().use { output -> input.copyTo(output) }
+            }
+            check(temporary.length() > 1_000_000L) {
+                "Downloaded sherpa-onnx AAR looks incomplete: ${temporary.length()} bytes"
+            }
+            check(temporary.renameTo(target)) {
+                "Could not move ${temporary.name} to ${target.name}"
+            }
+        } finally {
+            if (temporary.exists()) temporary.delete()
+        }
+    }
 }
 
 android {
@@ -13,6 +53,12 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            // arm64-v8a — реальные устройства, x86_64 — эмулятор Pixel 7.
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -49,13 +95,10 @@ android {
         }
     }
 
-    // Optional sherpa-onnx sources. They are compiled only when the AAR exists,
-    // so the app can be built and tested without any native binaries.
-    sourceSets {
-        getByName("main") {
-            if (project.file("libs/sherpa-onnx.aar").exists()) {
-                java.srcDir("src/main/java-sherpa")
-            }
+    kapt {
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
         }
     }
 }
@@ -68,19 +111,38 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.8.2")
+    implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+
+    // Нужен для распаковки официального .tar.bz2 архива модели GigaAM.
+    implementation("org.apache.commons:commons-compress:1.26.2")
 
     // Needed only for the XML theme Theme.Material3.DayNight.NoActionBar.
     implementation("com.google.android.material:material:1.12.0")
 
-    // sherpa-onnx is optional and is not published to Maven Central.
-    // Download the Android AAR from https://github.com/k2-fsa/sherpa-onnx/releases,
-    // rename it to sherpa-onnx.aar and put it into app/libs/ (see libs/README.md).
-    // When the file is absent, the app still builds and runs with DemoTranscriber.
-    val sherpaAar = project.file("libs/sherpa-onnx.aar")
-    if (sherpaAar.exists()) {
-        implementation(files(sherpaAar))
-    }
+    // Официальный AAR sherpa-onnx (arm64-v8a + x86_64).
+    implementation(files(sherpaAar))
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+}
+
+// AAR нужен до компиляции. Регистрируем зависимость задачи, не выполняя сеть
+// на этапе конфигурации.
+tasks.named("preBuild").configure {
+    dependsOn(downloadSherpaOnnx)
 }

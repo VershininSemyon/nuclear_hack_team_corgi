@@ -1,26 +1,17 @@
-# Модель sherpa-onnx (опционально)
+# Модель GigaAM v3
 
-Сейчас демо-режим не использует модель. Эти файлы понадобятся, когда вы
-подключите реальный транскрибер на sherpa-onnx.
+Модель не входит в APK. Она устанавливается на устройстве через экран
+распознавания: скачивается официальный архив
+`sherpa-onnx-nemo-transducer-giga-am-v3-russian-2025-12-16.tar.bz2` или
+выбирается вручную, проверяется по SHA-256 и распаковывается в
+`filesDir/models/gigaam-v3/`:
 
-## Что положить
+```text
+encoder.int8.onnx
+decoder.onnx
+joiner.onnx
+tokens.txt
+```
 
-- `model.int8.onnx` — офлайн-модель Paraformer;
-- `tokens.txt` — файл токенов из того же архива.
-
-## Где взять
-
-1. Откройте <https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models>.
-2. Скачайте, например, `sherpa-onnx-paraformer-zh-small-2024-03-09.tar.bz2`.
-3. Распакуйте архив.
-4. Скопируйте файлы сюда:
-
-   ```text
-   app/src/main/assets/model.int8.onnx
-   app/src/main/assets/tokens.txt
-   ```
-
-Заготовка `SherpaAsr` при первом запуске копирует их из assets в `filesDir`
-и создаёт `OfflineRecognizer`. Повторно файлы не перезаписываются.
-
-> Без модели демо-режим продолжает работать.
+Не копируйте модель в `assets`: это увеличило бы APK на ~220 МБ и попало бы в
+Git. Подробности — в `android/README.md`.

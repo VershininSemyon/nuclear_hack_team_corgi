@@ -36,30 +36,110 @@ import com.example.baseapp.audio.AudioFileInfo
 import com.example.baseapp.transcriber.TranscriptSegment
 import com.example.baseapp.transcriber.TranscriptionResult
 import com.example.baseapp.transcriber.WordTimestamp
+import com.example.baseapp.transcriber.model.ModelStage
+import com.example.baseapp.transcriber.model.ModelStatus
 import java.util.Locale
 
 @Composable
-fun DemoModeCard() {
+fun ModelStatusCard(
+    status: ModelStatus,
+    onInstall: () -> Unit,
+    onPickArchive: () -> Unit,
+    onRetry: () -> Unit,
+) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            containerColor = when (status) {
+                is ModelStatus.Installed -> MaterialTheme.colorScheme.secondaryContainer
+                is ModelStatus.Error -> MaterialTheme.colorScheme.errorContainer
+                is ModelStatus.Missing -> MaterialTheme.colorScheme.surfaceVariant
+                is ModelStatus.Working -> MaterialTheme.colorScheme.surfaceVariant
+            },
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Демо-режим",
+                text = "GigaAM v3 · локальное распознавание",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            when (status) {
+                is ModelStatus.Installed -> {
+                    Text(
+                        text = "Модель установлена. Русская речь распознаётся " +
+                            "на устройстве без отправки аудио в сеть.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                is ModelStatus.Missing -> {
+                    Text(
+                        text = "Модель не установлена. Для распознавания нужно " +
+                            "скачать официальный архив (~160 МБ) и распаковать " +
+                            "его во внутреннее хранилище приложения.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onInstall) { Text("Скачать модель") }
+                        OutlinedButton(onClick = onPickArchive) {
+                            Text("Из файла")
+                        }
+                    }
+                }
+
+                is ModelStatus.Working -> {
+                    Text(
+                        text = when (status.stage) {
+                            ModelStage.DOWNLOADING -> "Скачивание модели..."
+                            ModelStage.EXTRACTING -> "Распаковка модели..."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (status.progress == null || status.progress <= 0f) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { status.progress.coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${(status.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+
+                is ModelStatus.Error -> {
+                    Text(
+                        text = status.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onRetry) { Text("Повторить") }
+                        OutlinedButton(onClick = onPickArchive) {
+                            Text("Из файла")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Распознавание имитируется. Подключите свой класс в " +
-                    "TranscriberFactory.kt — интерфейс Transcriber уже готов.",
-                style = MaterialTheme.typography.bodySmall,
+                text = "Файлы модели не входят в APK и не хранятся в Git.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
+
 
 @Composable
 fun AudioSourceCard(
@@ -97,7 +177,8 @@ fun AudioSourceCard(
 
             if (audio == null) {
                 Text(
-                    text = "Загрузите аудиофайл или запишите разговор с микрофона.",
+                    text = "Загрузите аудиофайл или запишите разговор с микрофона. " +
+                        "Поддерживаются WAV, MP3 и MP4.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -111,6 +192,8 @@ fun AudioSourceCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = buildString {
+                        append(audio.format.displayName)
+                        append(" · ")
                         append(
                             if (audio.durationMs > 0) {
                                 formatDuration(audio.durationMs)
@@ -187,7 +270,7 @@ fun TranscriptionProgressCard(progress: Float) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = safeProgress,
+                progress = { safeProgress },
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -394,6 +477,74 @@ fun WordTimestampRow(word: WordTimestamp) {
 }
 
 @Composable
+fun SaveTranscriptCard(
+    isSaving: Boolean,
+    savedTranscriptId: Long?,
+    onSave: () -> Unit,
+    onOpenEditor: (Long) -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = if (savedTranscriptId == null) {
+                    "Сохранить расшифровку"
+                } else {
+                    "Расшифровка сохранена"
+                },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Текст, слова, таймкоды и реплики будут сохранены " +
+                    "локально. Исходный результат ASR останется неизменным " +
+                    "после ручного редактирования.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            if (savedTranscriptId == null) {
+                Button(
+                    onClick = onSave,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (isSaving) "Сохранение..." else "Сохранить расшифровку")
+                }
+            } else {
+                Button(
+                    onClick = { onOpenEditor(savedTranscriptId) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Открыть в редакторе")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TimestampDisclaimer() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+    ) {
+        Text(
+            text = "Текст изменён вручную. Таймкоды ниже относятся к исходному " +
+                "результату распознавания и не гарантированно совпадают с " +
+                "исправленным текстом.",
+            modifier = Modifier.padding(16.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+    }
+}
+
+@Composable
 fun EmptyStateCard() {
     Card(
         colors = CardDefaults.cardColors(
@@ -429,7 +580,7 @@ private fun formatDuration(ms: Long): String {
     return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
 
-private fun formatTimestamp(ms: Long): String {
+fun formatTimestamp(ms: Long): String {
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
