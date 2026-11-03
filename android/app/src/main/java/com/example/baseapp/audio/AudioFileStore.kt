@@ -15,12 +15,17 @@ data class AudioFileInfo(
     val displayName: String,
     val durationMs: Long,
     val sizeBytes: Long,
+    val format: AudioFormat,
+    val mimeType: String? = null,
 ) {
     val path: String get() = file.absolutePath
 }
 
 /**
  * Импорт аудио через Storage Access Framework и чтение метаданных.
+ *
+ * Файл копируется во внутреннее хранилище и сразу проверяется:
+ * поддерживается только WAV, MP3 и MP4.
  */
 object AudioFileStore {
 
@@ -30,7 +35,9 @@ object AudioFileStore {
     fun importFromUri(context: Context, uri: Uri): AudioFileInfo {
         val resolver = context.contentResolver
         val originalName = queryDisplayName(resolver, uri)
+            ?: uri.lastPathSegment?.substringAfterLast('/')
             ?: "audio_${System.currentTimeMillis()}"
+        val mimeType = resolver.getType(uri)
 
         val safeName = sanitizeFileName(originalName)
         val dir = File(context.filesDir, "uploads").apply { mkdirs() }
@@ -41,28 +48,77 @@ object AudioFileStore {
                 target.outputStream().use { output ->
                     input.copyTo(output)
                 }
-            } ?: error("Не удалось открыть выбранный файл")
+            } ?: throw CorruptedAudioFileException()
+        } catch (e: AudioException) {
+            target.delete()
+            throw e
+        } catch (t: Throwable) {
+            target.delete()
+            throw CorruptedAudioFileException(t)
+        }
+
+        if (target.length() == 0L) {
+            target.delete()
+            throw EmptyAudioFileException()
+        }
+
+        val format = try {
+            AudioFileValidator.validate(
+                file = target,
+                displayName = originalName,
+                mimeType = mimeType,
+            )
         } catch (t: Throwable) {
             target.delete()
             throw t
         }
 
-        if (target.length() == 0L) {
-            target.delete()
-            error("Выбранный файл пустой")
-        }
-
-        return describe(target, originalName)
+        return AudioFileInfo(
+            file = target,
+            displayName = originalName,
+            durationMs = readDurationMs(target),
+            sizeBytes = target.length(),
+            format = format,
+            mimeType = mimeType,
+        )
     }
 
-    fun describe(file: File, displayName: String = file.name): AudioFileInfo {
+    fun describe(
+        file: File,
+        displayName: String = file.name,
+        mimeType: String? = null,
+    ): AudioFileInfo {
+        val detectedFormat = AudioFileValidator.validate(
+            file = file,
+            displayName = displayName,
+            mimeType = mimeType,
+        )
         return AudioFileInfo(
             file = file,
             displayName = displayName,
             durationMs = readDurationMs(file),
             sizeBytes = file.length(),
+            format = detectedFormat,
+            mimeType = mimeType,
         )
     }
+
+    /**
+     * Описание уже проверенного файла (например, после записи с микрофона).
+     */
+    fun describeValidated(
+        file: File,
+        displayName: String = file.name,
+        format: AudioFormat,
+        mimeType: String? = null,
+    ): AudioFileInfo = AudioFileInfo(
+        file = file,
+        displayName = displayName,
+        durationMs = readDurationMs(file),
+        sizeBytes = file.length(),
+        format = format,
+        mimeType = mimeType,
+    )
 
     private fun readDurationMs(file: File): Long {
         val retriever = MediaMetadataRetriever()

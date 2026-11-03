@@ -65,6 +65,7 @@ class WavRecorder(private val context: Context) {
             CHANNEL_CONFIG,
             AUDIO_FORMAT,
         )
+
         val bufferSize = if (minBufferSize > 0) {
             maxOf(minBufferSize, SAMPLE_RATE)
         } else {
@@ -85,6 +86,7 @@ class WavRecorder(private val context: Context) {
         }
 
         val stream = FileOutputStream(file)
+
         try {
             stream.write(createWavHeader(dataSize = 0))
             stream.flush()
@@ -97,21 +99,26 @@ class WavRecorder(private val context: Context) {
 
         audioRecord = record
         outputFile = file
+
         record.startRecording()
         isRecording = true
 
         recordingJob = scope.launch {
             val buffer = ShortArray(2048)
             val bytes = ByteArray(buffer.size * 2)
+
             try {
                 while (isActive && isRecording) {
                     val read = record.read(buffer, 0, buffer.size)
+
                     if (read > 0) {
                         for (i in 0 until read) {
                             val value = buffer[i].toInt()
                             bytes[i * 2] = (value and 0xFF).toByte()
-                            bytes[i * 2 + 1] = ((value shr 8) and 0xFF).toByte()
+                            bytes[i * 2 + 1] =
+                                ((value shr 8) and 0xFF).toByte()
                         }
+
                         stream.write(bytes, 0, read * 2)
                     } else if (read < 0) {
                         break
@@ -123,6 +130,7 @@ class WavRecorder(private val context: Context) {
                 } catch (_: Exception) {
                     // Ignore.
                 }
+
                 try {
                     stream.close()
                 } catch (_: Exception) {
@@ -187,12 +195,15 @@ class WavRecorder(private val context: Context) {
             } catch (_: IllegalStateException) {
                 // Already stopped.
             }
+
             record.release()
         }
+
         audioRecord = null
 
         recordingJob?.cancel()
         recordingJob = null
+
         scope.cancel()
     }
 
@@ -225,6 +236,7 @@ class WavRecorder(private val context: Context) {
         RandomAccessFile(file, "rw").use { raf ->
             raf.seek(4)
             raf.write(intToLittleEndian(36 + dataSize))
+
             raf.seek(40)
             raf.write(intToLittleEndian(dataSize))
         }
@@ -238,6 +250,9 @@ class WavRecorder(private val context: Context) {
     }
 
     private fun fileTimestamp(): String {
-        return SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+        return SimpleDateFormat(
+            "yyyyMMdd_HHmmss_SSS",
+            Locale.US,
+        ).format(Date())
     }
 }

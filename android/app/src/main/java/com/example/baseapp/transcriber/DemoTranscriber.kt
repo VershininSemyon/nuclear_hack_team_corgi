@@ -6,7 +6,6 @@ import kotlinx.coroutines.delay
  * Заглушка для проверки интерфейса без модели.
  *
  * Возвращает демонстрационный диалог двух говорящих с таймкодами слов.
- * Замените этот класс на реальную реализацию в [TranscriberFactory].
  */
 class DemoTranscriber : Transcriber {
 
@@ -72,12 +71,14 @@ class DemoTranscriber : Transcriber {
             } else {
                 totalDuration * token.length / totalWeight
             }
+
             val word = WordTimestamp(
                 word = token,
                 startMs = cursor,
                 endMs = cursor + duration,
                 speaker = speaker,
             )
+
             cursor += duration
             word
         }

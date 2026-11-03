@@ -1,34 +1,18 @@
-# sherpa-onnx AAR (опционально)
+# sherpa-onnx AAR
 
-Сейчас приложение собирается и работает без этого файла: включён демо-режим
-`DemoTranscriber`.
+Приложение использует официальный `sherpa-onnx-2.0.1.aar` (`arm64-v8a` и
+`x86_64`). AAR не коммитится в Git: Gradle-задача `downloadSherpaOnnx`
+скачивает его в эту папку при первой сборке.
 
-AAR понадобится, когда вы будете реализовывать реальный транскрибер на
-sherpa-onnx.
+Файл: <https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar>
 
-## Как подключить
+Если нужна другая версия:
 
-1. Откройте <https://github.com/k2-fsa/sherpa-onnx/releases>.
-2. Скачайте Android-архив `sherpa-onnx-<version>.aar`.
-3. Переименуйте его в `sherpa-onnx.aar`.
-4. Положите сюда:
+1. Скачайте `sherpa-onnx-<version>.aar` со страницы релизов.
+2. Положите файл в `app/libs/` и обновите `sherpaVersion` в
+   `app/build.gradle.kts`.
+3. Выполните Gradle Sync.
 
-   ```text
-   app/libs/sherpa-onnx.aar
-   ```
-
-После этого выполните Gradle Sync. В `app/build.gradle.kts` уже есть
-условное подключение:
-
-```kotlin
-val sherpaAar = project.file("libs/sherpa-onnx.aar")
-if (sherpaAar.exists()) {
-    implementation(files(sherpaAar))
-}
-```
-
-Также при наличии AAR автоматически компилируется исходник
-`app/src/main/java-sherpa/com/example/baseapp/SherpaAsr.kt`.
-Он не подключён к UI — это заготовка/пример для будущей реализации.
-
-> Без AAR ничего не ломается: файл просто игнорируется.
+Без AAR проект не соберётся, потому что `GigaAmTranscriber` и `SherpaEngine`
+используют его API. Модель GigaAM v3 в AAR не входит — она устанавливается
+отдельно через экран приложения (см. `android/README.md`).
