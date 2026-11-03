@@ -1,17 +1,85 @@
 
-# Python-generated files
+# Python
+
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python build artifacts
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
 
-# Virtual environments
-.venv
-venv
-.env
-env
+# Testing and coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Logs
 *.log
+
+
+# Environment variables and secrets
+
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Android / Kotlin / Gradle
+
+# Gradle
+.gradle/
+**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# Android Studio
+.idea/
+*.iml
+
+# Kotlin
+.kotlin/
+
+# Generated Android files
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing keys and configuration
+*.jks
+*.keystore
+keystore.properties
+
+# VS Code
+
+.vscode/
+!.vscode/extensions.json
+
+# Operating system
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+
+*.tmp
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+\ No newline at end of file
