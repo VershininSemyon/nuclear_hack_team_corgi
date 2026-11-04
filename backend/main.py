@@ -11,6 +11,8 @@ from src.exceptions.base import AppError
 
 from src.api.routers.auth import auth_router
 from src.api.routers.user import user_router
+from src.api.routers.audio import audio_router
+from src.api.routers.transcription import transcription_router
 
 
 @asynccontextmanager
@@ -32,6 +34,8 @@ if settings.CORS_ORIGINS:
 
 app.include_router(user_router)
 app.include_router(auth_router)
+app.include_router(audio_router)
+app.include_router(transcription_router)
 
 
 @app.exception_handler(AppError)
