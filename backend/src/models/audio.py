@@ -2,9 +2,10 @@
 import uuid
 from datetime import datetime
 
-from src.db.database import Base
 from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.db.database import Base
 
 
 class AudioORM(Base):
@@ -18,6 +19,7 @@ class AudioORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["UserORM"] = relationship("UserORM", back_populates="audios")
+    transcriptions: Mapped[list["TranscriptionORM"]] = relationship("TranscriptionORM", back_populates="audio")
 
     __table_args__ = (
         UniqueConstraint("user_id", "s3_key", name="uq_user_s3_key"),

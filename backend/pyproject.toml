@@ -18,3 +18,17 @@ dependencies = [
     "aioboto3>=15.5.0",
     "python-multipart>=0.0.33",
 ]
+
+[tool.ruff]
+line-length = 120
+exclude = [".venv", "venv", ".env", "env", "alembic", "migrations", "background/broker.py"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]
+fixable = ["ALL"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+explicit_package_bases = true
+exclude = [".venv", "venv", ".env", "env", "alembic", "migrations"]

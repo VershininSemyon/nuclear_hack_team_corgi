@@ -6,6 +6,7 @@ from src.config.settings import settings
 from src.db.database import Base
 from src.models.user import UserORM
 from src.models.audio import AudioORM
+from src.models.transcription import TranscriptionORM
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
