@@ -49,14 +49,6 @@ class S3Service:
             async with response["Body"] as stream:
                 return await stream.read()
 
-    async def generate_presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        async with self.session.client(**self._client_kwargs) as client:
-            return await client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self.bucket, "Key": key},
-                ExpiresIn=expires_in,
-            )
-
     async def delete_file(self, key: str) -> None:
         async with self.session.client(**self._client_kwargs) as client:
             await client.delete_object(Bucket=self.bucket, Key=key)
