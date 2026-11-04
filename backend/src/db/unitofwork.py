@@ -1,4 +1,5 @@
 
+from src.db.repositories.audio import AudioRepository
 from src.db.repositories.user import UserRepository
 
 
@@ -10,6 +11,7 @@ class UnitOfWork:
         self.session = self.session_factory()
 
         self.user_repository = UserRepository(self.session)
+        self.audio_repository = AudioRepository(self.session)
 
     async def __aexit__(self, exc_type, exc, tb):
         try:

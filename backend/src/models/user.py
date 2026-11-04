@@ -16,3 +16,5 @@ class UserORM(Base):
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password: Mapped[str] = mapped_column(Text, nullable=False)
     registration_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    audios: Mapped[list["AudioORM"]] = relationship("AudioORM", back_populates="user")

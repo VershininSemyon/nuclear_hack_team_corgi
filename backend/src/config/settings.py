@@ -35,12 +35,22 @@ class PasswordSettings(BaseModel):
     PASSWORD_SALT: str
 
 
+class MinioSettings(BaseModel):
+    MINIO_ENDPOINT: str = 'minio:9000'      # host:port внутри docker-сети
+    MINIO_ROOT_USER: str
+    MINIO_ROOT_PASSWORD: str
+    MINIO_BUCKET: str = 'audios'
+    MINIO_SECURE: bool = False
+    MINIO_REGION: str = 'us-east-1'
+
+
 class Settings(
     UvicornSettings,
     CorsSettings,
     PostgresSettings,
     JwtSettings,
     PasswordSettings,
+    MinioSettings,
     BaseSettings
 ):
     model_config = SettingsConfigDict(

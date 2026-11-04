@@ -1,3 +1,4 @@
 2026/11/02 17:29:07 [error] 21#21: *1 "/etc/nginx/html/users/index.html" is not found (2: No such file or directory), client: 172.18.0.1, server: localhost, request: "POST /users/ HTTP/1.1", host: "localhost", referrer: "http://localhost/api/docs"
 2026/11/02 17:30:01 [error] 21#21: *1 open() "/etc/nginx/html/favicon.ico" failed (2: No such file or directory), client: 172.18.0.1, server: localhost, request: "GET /favicon.ico HTTP/1.1", host: "localhost", referrer: "http://localhost/api/auth/docs"
 2026/11/02 17:33:04 [error] 21#21: *7 open() "/etc/nginx/html/users/me" failed (2: No such file or directory), client: 172.18.0.1, server: localhost, request: "GET /users/me HTTP/1.1", host: "localhost", referrer: "http://localhost/api/docs"
+2026/11/04 09:01:40 [error] 22#22: *5 client intended to send too large body: 5875575 bytes, client: 172.18.0.1, server: localhost, request: "POST /api/audios/ HTTP/1.1", host: "localhost", referrer: "http://localhost/api/docs"
