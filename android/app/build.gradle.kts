@@ -3,7 +3,7 @@ import java.net.URI
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // id("org.jetbrains.kotlin.kapt")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 val sherpaVersion = "2.0.1"
@@ -95,12 +95,14 @@ android {
         }
     }
 
-    // kapt {
-       // arguments {
-         //   arg("room.schemaLocation", "$projectDir/schemas")
-           // arg("room.incremental", "true")
-        // }
-    // }
+    kapt {
+        correctErrorTypes = true
+
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+        }
+    }
 }
 
 dependencies {
@@ -122,7 +124,7 @@ dependencies {
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    // kapt("androidx.room:room-compiler:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     // Нужен для распаковки официального .tar.bz2 архива модели GigaAM.
     implementation("org.apache.commons:commons-compress:1.26.2")

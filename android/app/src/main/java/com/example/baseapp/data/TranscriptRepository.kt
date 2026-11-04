@@ -52,7 +52,16 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
     }
 
     private fun defaultTitle(f: String) = f.substringBeforeLast('.', f).ifBlank { "Расшифровка" }
-    private fun TranscriptEntity.toSummary() = TranscriptSummary(id, title, snippet(text), parseFormat(audioFormat), createdAt, updatedAt, isEdited)
+    private fun TranscriptEntity.toSummary() = TranscriptSummary(
+        id = id,
+        title = title,
+        snippet = snippet(text),
+        audioFileName = audioFileName,
+        audioFormat = parseFormat(audioFormat),
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        isEdited = isEdited,
+    )
     private fun TranscriptWithRelations.toStored(): StoredTranscript {
         val sw = words.sortedBy { it.position }.map { WordTimestamp(it.word, it.startMs, it.endMs, it.speaker) }
         val ss = segments.sortedBy { it.position }.map { e -> TranscriptSegment(e.speaker, e.startMs, e.endMs, e.text, sw.filter { it.speaker == e.speaker && it.startMs >= e.startMs && it.endMs <= e.endMs }) }
