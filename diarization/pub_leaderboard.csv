@@ -1,0 +1,11 @@
+﻿rank,model,DER_%,confusion_%,miss_%,false_alarm_%,RTF,size_MB,spk_count_err
+1,3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx,44.67,18.94,23.56,2.17,0.031,28.3,0.0
+2,nemo_en_titanet_large.onnx,47.71,21.97,23.57,2.17,0.06,101.4,0.0
+3,nemo_en_titanet_small.onnx,48.07,22.29,23.58,2.2,0.022,40.3,0.0
+4,3dspeaker_speech_eres2net_sv_en_voxceleb_16k.onnx,48.71,22.97,23.57,2.17,0.054,26.5,0.0
+5,wespeaker_en_voxceleb_resnet34.onnx,49.12,23.43,23.52,2.17,0.055,26.5,0.0
+6,wespeaker_en_voxceleb_resnet34_LM.onnx,49.38,23.65,23.56,2.17,0.052,26.5,0.0
+7,3dspeaker_speech_eres2netv2_sv_zh-cn_16k-common.onnx,49.49,23.72,23.59,2.17,0.12,71.4,0.0
+8,wespeaker_en_voxceleb_resnet293_LM.onnx,49.75,24.05,23.53,2.17,0.313,114.3,0.0
+9,wespeaker_en_voxceleb_resnet221_LM.onnx,54.56,28.88,23.51,2.17,0.22,95.0,0.0
+10,wespeaker_en_voxceleb_CAM++_LM.onnx,59.13,33.34,23.62,2.17,0.031,29.3,0.0
