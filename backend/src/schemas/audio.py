@@ -1,7 +1,6 @@
 
 import uuid
 from datetime import datetime
-
 import pydantic
 
 
@@ -17,16 +16,18 @@ class AudioReadSchema(pydantic.BaseModel):
     description: str | None
     s3_key: str
     created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None = None
 
     class Config:
         from_attributes = True
 
 
 class AudioWithDataSchema(AudioReadSchema):
-    audio_base64: str
+    audio_base64: str | None = None
     content_type: str = "audio/mpeg"
 
 
 class AudioUpdateSchema(pydantic.BaseModel):
     title: str
-    description: str | None
+    description: str | None = None

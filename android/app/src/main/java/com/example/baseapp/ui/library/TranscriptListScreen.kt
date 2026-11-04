@@ -1,206 +1,110 @@
+
 package com.example.baseapp.ui.library
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.baseapp.appContainer
 import com.example.baseapp.data.TranscriptSummary
-import com.example.baseapp.ui.formatDateTime
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptListScreen(
-    onBack: () -> Unit,
-    onOpenTranscript: (Long) -> Unit,
+    onTranscriptClick: (Long) -> Unit,
+    onNewTranscriptClick: () -> Unit,
+    viewModel: TranscriptListViewModel = viewModel(factory = TranscriptListViewModel.factory(
+        LocalContext.current.appContainer.transcriptRepository,
+        LocalContext.current.appContainer.authRepository,
+        LocalContext.current.appContainer.syncManager
+    )),
 ) {
-    val container = LocalContext.current.appContainer
-    val viewModel: TranscriptListViewModel = viewModel(
-        factory = TranscriptListViewModel.factory(container.transcriptRepository),
-    )
-    val transcripts by viewModel.transcripts.collectAsStateWithLifecycle()
-    var pendingDelete by remember { mutableStateOf<TranscriptSummary?>(null) }
+    val state by viewModel.uiState.collectAsState()
+    var showLoginDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Мои расшифровки") },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Назад") }
-                },
+                actions = {
+                    if (state.isLoggedIn) {
+                        IconButton(onClick = { viewModel.sync() }, enabled = !state.isSyncing) {
+                            if (state.isSyncing) CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                            else Icon(Icons.Default.Sync, contentDescription = "Синхронизировать")
+                        }
+                        TextButton(onClick = { viewModel.logout() }) { Text("Выйти") }
+                    } else {
+                        TextButton(onClick = { showLoginDialog = true }) { Text("Войти") }
+                    }
+                }
             )
         },
-    ) { innerPadding ->
-        if (transcripts.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "Пока нет сохранённых расшифровок",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Распознайте аудио и нажмите «Сохранить расшифровку».",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                TextButton(onClick = onBack) { Text("Вернуться к распознаванию") }
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNewTranscriptClick) { Icon(Icons.Default.Add, contentDescription = "Добавить") }
+        }
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            if (state.syncMessage != null) {
+                Card(modifier = Modifier.fillMaxWidth().padding(8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(state.syncMessage!!, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { viewModel.dismissMessage() }) { Text("OK") }
+                    }
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(transcripts, key = { it.id }) { transcript ->
-                    TranscriptCard(
-                        transcript = transcript,
-                        onOpen = { onOpenTranscript(transcript.id) },
-                        onDelete = { pendingDelete = transcript },
-                    )
+            
+            if (state.transcripts.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Нет расшифровок") }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(state.transcripts.size) { index ->
+                        val item = state.transcripts[index]
+                        TranscriptListItem(item = item, onClick = { onTranscriptClick(item.id) }, onDelete = { viewModel.delete(item.id) })
+                        if (index < state.transcripts.lastIndex) HorizontalDivider()
+                    }
                 }
             }
         }
     }
 
-    pendingDelete?.let { transcript ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("Удалить расшифровку?") },
-            text = {
-                Text(
-                    "«${transcript.title}» будет удалена вместе с текстом, " +
-                        "словами, таймкодами и репликами. Действие нельзя отменить.",
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.delete(transcript.id)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Отмена") }
-            },
-        )
+    if (showLoginDialog) {
+        LoginDialog(onDismiss = { showLoginDialog = false }, onLogin = { u, p -> viewModel.login(u, p); showLoginDialog = false })
     }
 }
 
 @Composable
-private fun TranscriptCard(
-    transcript: TranscriptSummary,
-    onOpen: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    text = transcript.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = transcript.audioFormat.displayName,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+fun LoginDialog(onDismiss: () -> Unit, onLogin: (String, String) -> Unit) {
+    var user by remember { mutableStateOf("") }
+    var pass by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Вход в аккаунт") },
+        text = {
+            Column {
+                OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text("Логин") }, singleLine = true)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text("Пароль") }, singleLine = true)
             }
+        },
+        confirmButton = { TextButton(onClick = { if (user.isNotBlank() && pass.isNotBlank()) onLogin(user, pass) }) { Text("Войти") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}
 
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = transcript.snippet.ifBlank { "Текст расшифровки пуст" },
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Создано: ${formatDateTime(transcript.createdAt)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (transcript.updatedAt != transcript.createdAt) {
-                Text(
-                    text = "Изменено: ${formatDateTime(transcript.updatedAt)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (transcript.isEdited) {
-                Text(
-                    text = "Текст исправлен вручную",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = onDelete) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
-                }
-                TextButton(onClick = onOpen) { Text("Открыть") }
-            }
-        }
-    }
+@Composable
+fun TranscriptListItem(item: TranscriptSummary, onClick: () -> Unit, onDelete: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(item.title) },
+        supportingContent = { Text(item.snippet, maxLines = 2) },
+        trailingContent = { TextButton(onClick = onDelete) { Text("Удалить") } },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
 }
