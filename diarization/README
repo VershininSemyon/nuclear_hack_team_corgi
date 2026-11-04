@@ -1,5 +1,5 @@
 download.py - скачивает все модли
-diarization.py - вся логика
+diarization.py - вся логика(там нужна только функция diarize)
 pub_test.py - просто нужен для тестирования
 
 
