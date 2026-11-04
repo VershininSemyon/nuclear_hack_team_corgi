@@ -10,6 +10,7 @@ from src.schemas.user import UserReadSchema
 from src.services.auth import AuthService
 from src.services.user import UserService
 from src.services.audio import AudioService
+from src.services.transcription import TranscriptionService
 
 
 def get_uow() -> UnitOfWork:
@@ -40,6 +41,12 @@ def get_audio_service(uow: UOWDep, s3: S3ServiceDep) -> AudioService:
     return AudioService(uow, s3)
 
 AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
+
+
+def get_transcription_service(uow: UOWDep) -> TranscriptionService:
+    return TranscriptionService(uow)
+
+TranscriptionServiceDep = Annotated[TranscriptionService, Depends(get_transcription_service)]
 
 
 async def get_current_user(
