@@ -33,17 +33,35 @@ class TranscriptListViewModel(
         }.launchIn(viewModelScope)
     }
 
-    fun delete(id: Long) { viewModelScope.launch { repository.delete(id) } }
+    fun delete(id: Long) {
+        viewModelScope.launch {
+            repository.delete(id)
+        }
+    }
 
     fun sync() {
         if (_uiState.value.isSyncing || !_uiState.value.isLoggedIn) return
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isSyncing = true, syncMessage = null) }
+            _uiState.update {
+                it.copy(isSyncing = true, syncMessage = null)
+            }
+
             try {
                 syncManager.sync()
-                _uiState.update { it.copy(isSyncing = false, syncMessage = "Синхронизация завершена") }
+                _uiState.update {
+                    it.copy(
+                        isSyncing = false,
+                        syncMessage = "Синхронизация завершена",
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSyncing = false, syncMessage = "Ошибка: ${e.message}") }
+                _uiState.update {
+                    it.copy(
+                        isSyncing = false,
+                        syncMessage = "Ошибка: ${e.message}",
+                    )
+                }
             }
         }
     }
@@ -51,10 +69,19 @@ class TranscriptListViewModel(
     fun login(username: String, password: String) {
         viewModelScope.launch {
             authRepository.login(username, password).onSuccess {
-                _uiState.update { it.copy(isLoggedIn = true, syncMessage = "Вход выполнен") }
+                _uiState.update {
+                    it.copy(
+                        isLoggedIn = true,
+                        syncMessage = "Вход выполнен",
+                    )
+                }
                 sync()
-            }.onFailure {
-                _uiState.update { it.copy(syncMessage = it.message) }
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    state.copy(
+                        syncMessage = "Ошибка входа: ${error.message ?: "неизвестная ошибка"}",
+                    )
+                }
             }
         }
     }
@@ -62,17 +89,29 @@ class TranscriptListViewModel(
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()
-            _uiState.update { it.copy(isLoggedIn = false) }
+            _uiState.update {
+                it.copy(isLoggedIn = false)
+            }
         }
     }
 
-    fun dismissMessage() { _uiState.update { it.copy(syncMessage = null) } }
+    fun dismissMessage() {
+        _uiState.update {
+            it.copy(syncMessage = null)
+        }
+    }
 
     companion object {
-        fun factory(repo: TranscriptRepository, auth: AuthRepository, sync: SyncManager): ViewModelProvider.Factory =
+        fun factory(
+            repo: TranscriptRepository,
+            auth: AuthRepository,
+            sync: SyncManager,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T = TranscriptListViewModel(repo, auth, sync) as T
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return TranscriptListViewModel(repo, auth, sync) as T
+                }
             }
     }
 }

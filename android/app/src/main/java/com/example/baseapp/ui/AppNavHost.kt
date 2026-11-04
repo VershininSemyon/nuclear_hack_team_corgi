@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui
 
 import androidx.compose.runtime.Composable
@@ -34,8 +35,8 @@ fun AppNavHost() {
 
         composable(Routes.LIBRARY) {
             TranscriptListScreen(
-                onBack = { navController.popBackStack() },
-                onOpenTranscript = { id -> navController.navigate(Routes.editor(id)) },
+                onTranscriptClick = { id -> navController.navigate(Routes.editor(id)) },
+                onNewTranscriptClick = { navController.navigate(Routes.TRANSCRIPTION) },
             )
         }
 

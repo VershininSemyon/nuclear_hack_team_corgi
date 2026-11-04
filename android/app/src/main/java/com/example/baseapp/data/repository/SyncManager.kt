@@ -1,3 +1,4 @@
+
 package com.example.baseapp.data.repository
 
 import android.content.Context
@@ -14,8 +15,12 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-class SyncManager(private val context: Context, private val audioDao: AudioDao, private val transcriptDao: TranscriptDao) {
-    
+class SyncManager(
+    private val context: Context,
+    private val audioDao: AudioDao,
+    private val transcriptDao: TranscriptDao,
+) {
+
     suspend fun sync() = withContext(Dispatchers.IO) {
         pushLocalChanges()
         pullServerChanges()
@@ -27,123 +32,369 @@ class SyncManager(private val context: Context, private val audioDao: AudioDao, 
                 SyncStatus.CREATED -> {
                     val file = File(audio.filePath)
                     if (file.exists()) {
-                        val body = MultipartBody.Part.createFormData("file", file.name, file.asRequestBody("audio/mpeg".toMediaTypeOrNull()))
-                        val res = RetrofitClient.api.createAudio(body, audio.title.toRequestBody(MultipartBody.FORM), audio.description?.toRequestBody(MultipartBody.FORM))
-                        if (res.isSuccessful) audioDao.update(audio.copy(serverId = res.body()!!.id, syncStatus = SyncStatus.SYNCED, updatedAt = parseDate(res.body()!!.updatedAt)))
+                        val body = MultipartBody.Part.createFormData(
+                            "file",
+                            file.name,
+                            file.asRequestBody("audio/mpeg".toMediaTypeOrNull()),
+                        )
+                        val res = RetrofitClient.api.createAudio(
+                            body,
+                            audio.title.toRequestBody(MultipartBody.FORM),
+                            audio.description?.toRequestBody(MultipartBody.FORM),
+                        )
+                        if (res.isSuccessful) {
+                            val response = res.body()!!
+                            audioDao.update(
+                                audio.copy(
+                                    serverId = response.id,
+                                    syncStatus = SyncStatus.SYNCED,
+                                    updatedAt = parseDate(response.updatedAt),
+                                ),
+                            )
+                        }
                     }
                 }
+
                 SyncStatus.UPDATED -> {
-                    audio.serverId?.let { 
-                        val res = RetrofitClient.api.updateAudio(it, AudioUpdateRequestDto(audio.title, audio.description))
-                        if (res.isSuccessful) audioDao.updateSyncStatus(audio.id, SyncStatus.SYNCED)
+                    audio.serverId?.let {
+                        val res = RetrofitClient.api.updateAudio(
+                            it,
+                            AudioUpdateRequestDto(audio.title, audio.description),
+                        )
+                        if (res.isSuccessful) {
+                            audioDao.updateSyncStatus(audio.id, SyncStatus.SYNCED)
+                        }
                     }
                 }
+
                 SyncStatus.DELETED -> {
-                    audio.serverId?.let { RetrofitClient.api.deleteAudio(it) }
+                    audio.serverId?.let {
+                        RetrofitClient.api.deleteAudio(it)
+                    }
                     audioDao.updateSyncStatus(audio.id, SyncStatus.SYNCED)
                 }
+
+                SyncStatus.SYNCED -> Unit
             }
         }
 
-        for (t in transcriptDao.getUnsynced()) {
-            val audio = audioDao.getById(t.audioLocalId) ?: continue
-            val serverAudioId = audio.serverId ?: continue
-            when (t.syncStatus) {
+        for (transcript in transcriptDao.getUnsynced()) {
+            val audio = audioDao.getById(transcript.audioLocalId)
+            if (audio == null) {
+                continue
+            }
+
+            val serverAudioId = audio.serverId
+            if (serverAudioId == null) {
+                continue
+            }
+
+            when (transcript.syncStatus) {
                 SyncStatus.CREATED -> {
-                    val detail = transcriptDao.getDetail(t.id) ?: continue
-                    val wordsDto = detail.words.map { WordDataDto(it.word, it.speaker ?: "Спикер 1", msToTs(it.startMs), msToTs(it.endMs)) }
-                    val req = TranscriptionCreateRequestDto(t.text, detail.segments.map{it.speaker}.distinct().size.coerceAtLeast(1), detail.words.size, detail.segments.size, wordsDto)
-                    val res = RetrofitClient.api.createTranscription(serverAudioId, req)
-                    if (res.isSuccessful) transcriptDao.update(t.copy(serverId = res.body()!!.id, syncStatus = SyncStatus.SYNCED, updatedAt = parseDate(res.body()!!.updatedAt)))
-                }
-                SyncStatus.UPDATED -> {
-                    t.serverId?.let { tid ->
-                        val detail = transcriptDao.getDetail(t.id) ?: continue
-                        val wordsDto = detail.words.map { WordDataDto(it.word, it.speaker ?: "Спикер 1", msToTs(it.startMs), msToTs(it.endMs)) }
-                        val req = TranscriptionUpdateRequestDto(t.text, detail.segments.map{it.speaker}.distinct().size.coerceAtLeast(1), detail.words.size, detail.segments.size, wordsDto)
-                        val res = RetrofitClient.api.updateTranscription(serverAudioId, tid, req)
-                        if (res.isSuccessful) transcriptDao.updateContent(t.id, t.title, t.text, t.isEdited, System.currentTimeMillis(), SyncStatus.SYNCED)
+                    val detail = transcriptDao.getDetail(transcript.id)
+                    if (detail == null) {
+                        continue
+                    }
+
+                    val wordsDto = detail.words.map {
+                        WordDataDto(
+                            it.word,
+                            it.speaker ?: "Спикер 1",
+                            msToTs(it.startMs),
+                            msToTs(it.endMs),
+                        )
+                    }
+
+                    val request = TranscriptionCreateRequestDto(
+                        transcript.text,
+                        detail.segments.map { it.speaker }.distinct().size.coerceAtLeast(1),
+                        detail.words.size,
+                        detail.segments.size,
+                        wordsDto,
+                    )
+
+                    val response = RetrofitClient.api.createTranscription(
+                        serverAudioId,
+                        request,
+                    )
+
+                    if (response.isSuccessful) {
+                        val body = response.body()!!
+                        transcriptDao.update(
+                            transcript.copy(
+                                serverId = body.id,
+                                syncStatus = SyncStatus.SYNCED,
+                                updatedAt = parseDate(body.updatedAt),
+                            ),
+                        )
                     }
                 }
-                SyncStatus.DELETED -> {
-                    t.serverId?.let { RetrofitClient.api.deleteTranscription(serverAudioId, it) }
-                    transcriptDao.updateContent(t.id, t.title, t.text, t.isEdited, System.currentTimeMillis(), SyncStatus.SYNCED)
+
+                SyncStatus.UPDATED -> {
+                    val transcriptServerId = transcript.serverId
+                    if (transcriptServerId == null) {
+                        continue
+                    }
+
+                    val detail = transcriptDao.getDetail(transcript.id)
+                    if (detail == null) {
+                        continue
+                    }
+
+                    val wordsDto = detail.words.map {
+                        WordDataDto(
+                            it.word,
+                            it.speaker ?: "Спикер 1",
+                            msToTs(it.startMs),
+                            msToTs(it.endMs),
+                        )
+                    }
+
+                    val request = TranscriptionUpdateRequestDto(
+                        transcript.text,
+                        detail.segments.map { it.speaker }.distinct().size.coerceAtLeast(1),
+                        detail.words.size,
+                        detail.segments.size,
+                        wordsDto,
+                    )
+
+                    val response = RetrofitClient.api.updateTranscription(
+                        serverAudioId,
+                        transcriptServerId,
+                        request,
+                    )
+
+                    if (response.isSuccessful) {
+                        transcriptDao.updateContent(
+                            transcript.id,
+                            transcript.title,
+                            transcript.text,
+                            transcript.isEdited,
+                            System.currentTimeMillis(),
+                            SyncStatus.SYNCED,
+                        )
+                    }
                 }
+
+                SyncStatus.DELETED -> {
+                    transcript.serverId?.let {
+                        RetrofitClient.api.deleteTranscription(serverAudioId, it)
+                    }
+
+                    transcriptDao.updateContent(
+                        transcript.id,
+                        transcript.title,
+                        transcript.text,
+                        transcript.isEdited,
+                        System.currentTimeMillis(),
+                        SyncStatus.SYNCED,
+                    )
+                }
+
+                SyncStatus.SYNCED -> Unit
             }
         }
     }
 
     private suspend fun pullServerChanges() {
-        val res = RetrofitClient.api.getAudios()
-        if (!res.isSuccessful) return
-        for (sa in res.body() ?: emptyList()) {
-            val local = audioDao.getByServerId(sa.id)
-            val serverTime = parseDate(sa.updatedAt)
-            
-            if (local == null && sa.deletedAt == null) {
-                val file = downloadAudio(sa)
-                val newId = audioDao.insert(AudioEntity(serverId = sa.id, syncStatus = SyncStatus.SYNCED, title = sa.title, description = sa.description, filePath = file.absolutePath, mimeType = sa.contentType ?: "audio/mpeg", createdAt = parseDate(sa.createdAt), updatedAt = serverTime))
-                pullTranscriptions(sa.id, newId)
-            } else if (local != null) {
-                if (sa.deletedAt != null && local.syncStatus == SyncStatus.SYNCED) {
-                    audioDao.softDelete(local.id, parseDate(sa.deletedAt), SyncStatus.SYNCED)
-                } else if (sa.deletedAt == null && serverTime > local.updatedAt && local.syncStatus == SyncStatus.SYNCED) {
-                    audioDao.update(local.copy(title = sa.title, description = sa.description, updatedAt = serverTime))
-                    pullTranscriptions(sa.id, local.id)
+        val response = RetrofitClient.api.getAudios()
+        if (!response.isSuccessful) return
+
+        for (serverAudio in response.body() ?: emptyList()) {
+            val localAudio = audioDao.getByServerId(serverAudio.id)
+            val serverTime = parseDate(serverAudio.updatedAt)
+
+            if (localAudio == null && serverAudio.deletedAt == null) {
+                val file = downloadAudio(serverAudio)
+                val newLocalId = audioDao.insert(
+                    AudioEntity(
+                        serverId = serverAudio.id,
+                        syncStatus = SyncStatus.SYNCED,
+                        title = serverAudio.title,
+                        description = serverAudio.description,
+                        filePath = file.absolutePath,
+                        mimeType = serverAudio.contentType ?: "audio/mpeg",
+                        createdAt = parseDate(serverAudio.createdAt),
+                        updatedAt = serverTime,
+                    ),
+                )
+                pullTranscriptions(serverAudio.id, newLocalId)
+            } else if (localAudio != null) {
+                if (
+                    serverAudio.deletedAt != null &&
+                    localAudio.syncStatus == SyncStatus.SYNCED
+                ) {
+                    audioDao.softDelete(
+                        localAudio.id,
+                        parseDate(serverAudio.deletedAt),
+                        SyncStatus.SYNCED,
+                    )
+                } else if (
+                    serverAudio.deletedAt == null &&
+                    serverTime > localAudio.updatedAt &&
+                    localAudio.syncStatus == SyncStatus.SYNCED
+                ) {
+                    audioDao.update(
+                        localAudio.copy(
+                            title = serverAudio.title,
+                            description = serverAudio.description,
+                            updatedAt = serverTime,
+                        ),
+                    )
+                    pullTranscriptions(serverAudio.id, localAudio.id)
                 }
             }
         }
     }
 
-    private suspend fun pullTranscriptions(serverAudioId: String, localAudioId: Long) {
-        val res = RetrofitClient.api.getTranscriptions(serverAudioId)
-        if (!res.isSuccessful) return
-        for (st in res.body() ?: emptyList()) {
-            val localT = transcriptDao.getByServerId(st.id)
-            val serverTime = parseDate(st.updatedAt)
-            if (localT == null && st.deletedAt == null) {
-                val words = st.wordsData.mapIndexed { i, w -> TranscriptWordEntity(transcriptId = 0, position = i, word = w.word, startMs = tsToMs(w.startTime), endMs = tsToMs(w.endTime), speaker = w.speaker) }
+    private suspend fun pullTranscriptions(
+        serverAudioId: String,
+        localAudioId: Long,
+    ) {
+        val response = RetrofitClient.api.getTranscriptions(serverAudioId)
+        if (!response.isSuccessful) return
+
+        for (serverTranscript in response.body() ?: emptyList()) {
+            val localTranscript = transcriptDao.getByServerId(serverTranscript.id)
+            val serverTime = parseDate(serverTranscript.updatedAt)
+
+            if (localTranscript == null && serverTranscript.deletedAt == null) {
+                val words = serverTranscript.wordsData.mapIndexed { index, word ->
+                    TranscriptWordEntity(
+                        transcriptId = 0,
+                        position = index,
+                        word = word.word,
+                        startMs = tsToMs(word.startTime),
+                        endMs = tsToMs(word.endTime),
+                        speaker = word.speaker,
+                    )
+                }
+
                 val segments = reconstructSegments(words)
-                val newT = TranscriptEntity(serverId = st.id, syncStatus = SyncStatus.SYNCED, audioLocalId = localAudioId, title = "", text = st.text, originalText = st.text, audioFileName = "", audioFormat = "WAV", createdAt = parseDate(st.createdAt), updatedAt = serverTime, language = "ru", isEdited = false)
-                val tid = transcriptDao.insertTranscript(newT)
-                transcriptDao.insertWords(words.map { it.copy(transcriptId = tid) })
-                transcriptDao.insertSegments(segments.map { it.copy(transcriptId = tid) })
-            } else if (localT != null) {
-                if (st.deletedAt != null && localT.syncStatus == SyncStatus.SYNCED) {
-                    transcriptDao.softDelete(localT.id, parseDate(st.deletedAt), SyncStatus.SYNCED)
-                } else if (st.deletedAt == null && serverTime > localT.updatedAt && localT.syncStatus == SyncStatus.SYNCED) {
-                    transcriptDao.updateContent(localT.id, localT.title, st.text, localT.isEdited, serverTime, SyncStatus.SYNCED)
+
+                val newTranscript = TranscriptEntity(
+                    serverId = serverTranscript.id,
+                    syncStatus = SyncStatus.SYNCED,
+                    audioLocalId = localAudioId,
+                    title = "",
+                    text = serverTranscript.text,
+                    originalText = serverTranscript.text,
+                    audioFileName = "",
+                    audioFormat = "WAV",
+                    createdAt = parseDate(serverTranscript.createdAt),
+                    updatedAt = serverTime,
+                    language = "ru",
+                    isEdited = false,
+                )
+
+                val transcriptId = transcriptDao.insertTranscript(newTranscript)
+                transcriptDao.insertWords(
+                    words.map { it.copy(transcriptId = transcriptId) },
+                )
+                transcriptDao.insertSegments(
+                    segments.map { it.copy(transcriptId = transcriptId) },
+                )
+            } else if (localTranscript != null) {
+                if (
+                    serverTranscript.deletedAt != null &&
+                    localTranscript.syncStatus == SyncStatus.SYNCED
+                ) {
+                    transcriptDao.softDelete(
+                        localTranscript.id,
+                        parseDate(serverTranscript.deletedAt),
+                        SyncStatus.SYNCED,
+                    )
+                } else if (
+                    serverTranscript.deletedAt == null &&
+                    serverTime > localTranscript.updatedAt &&
+                    localTranscript.syncStatus == SyncStatus.SYNCED
+                ) {
+                    transcriptDao.updateContent(
+                        localTranscript.id,
+                        localTranscript.title,
+                        serverTranscript.text,
+                        localTranscript.isEdited,
+                        serverTime,
+                        SyncStatus.SYNCED,
+                    )
                 }
             }
         }
     }
 
-    private fun downloadAudio(sa: AudioResponseDto): File {
-        val dir = File(context.filesDir, "downloads").apply { mkdirs() }
-        val file = File(dir, "${sa.id}.mp3")
-        sa.audioBase64?.let { file.writeBytes(Base64.getDecoder().decode(it)) }
+    private fun downloadAudio(serverAudio: AudioResponseDto): File {
+        val directory = File(context.filesDir, "downloads").apply {
+            mkdirs()
+        }
+        val file = File(directory, "${serverAudio.id}.mp3")
+        serverAudio.audioBase64?.let {
+            file.writeBytes(Base64.getDecoder().decode(it))
+        }
         return file
     }
 
-    private fun msToTs(ms: Long) = TimestampDto((ms/3600000).toInt(), ((ms%3600000)/60000).toInt(), ((ms%60000)/1000).toInt(), (ms%1000).toInt())
-    private fun tsToMs(ts: TimestampDto) = ts.hour*3600000L + ts.minute*60000L + ts.second*1000L + ts.millisecond
-    private fun parseDate(s: String) = try { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSS", Locale.US).parse(s)?.time ?: System.currentTimeMillis() } catch (e: Exception) { System.currentTimeMillis() }
-    
-    private fun reconstructSegments(words: List<TranscriptWordEntity>): List<TranscriptSegmentEntity> {
+    private fun msToTs(ms: Long) = TimestampDto(
+        (ms / 3600000).toInt(),
+        ((ms % 3600000) / 60000).toInt(),
+        ((ms % 60000) / 1000).toInt(),
+        (ms % 1000).toInt(),
+    )
+
+    private fun tsToMs(timestamp: TimestampDto) =
+        timestamp.hour * 3600000L +
+            timestamp.minute * 60000L +
+            timestamp.second * 1000L +
+            timestamp.millisecond
+
+    private fun parseDate(value: String): Long =
+        try {
+            SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS",
+                Locale.US,
+            ).parse(value)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+
+    private fun reconstructSegments(
+        words: List<TranscriptWordEntity>,
+    ): List<TranscriptSegmentEntity> {
         if (words.isEmpty()) return emptyList()
+
         val segments = mutableListOf<TranscriptSegmentEntity>()
         var currentSpeaker = words[0].speaker ?: "Спикер 1"
         var startMs = words[0].startMs
         var text = StringBuilder()
-        words.forEachIndexed { i, w ->
-            val sp = w.speaker ?: "Спикер 1"
-            if (sp != currentSpeaker || i == words.lastIndex) {
-                if (i == words.lastIndex && sp == currentSpeaker) text.append(w.word).append(" ")
-                segments.add(TranscriptSegmentEntity(transcriptId = 0, position = segments.size, speaker = currentSpeaker, startMs = startMs, endMs = words[maxOf(0, i-1)].endMs, text = text.toString().trim()))
-                if (sp != currentSpeaker) { currentSpeaker = sp; startMs = w.startMs; text = StringBuilder(w.word).append(" ") }
-                else if (i == words.lastIndex && sp == currentSpeaker && text.isEmpty()) { /* handled */ }
-            } else { text.append(w.word).append(" ") }
+
+        words.forEachIndexed { index, word ->
+            val speaker = word.speaker ?: "Спикер 1"
+
+            if (speaker != currentSpeaker || index == words.lastIndex) {
+                if (index == words.lastIndex && speaker == currentSpeaker) {
+                    text.append(word.word).append(" ")
+                }
+
+                segments.add(
+                    TranscriptSegmentEntity(
+                        transcriptId = 0,
+                        position = segments.size,
+                        speaker = currentSpeaker,
+                        startMs = startMs,
+                        endMs = words[maxOf(0, index - 1)].endMs,
+                        text = text.toString().trim(),
+                    ),
+                )
+
+                if (speaker != currentSpeaker) {
+                    currentSpeaker = speaker
+                    startMs = word.startMs
+                    text = StringBuilder(word.word).append(" ")
+                }
+            } else {
+                text.append(word.word).append(" ")
+            }
         }
+
         return segments
     }
 }
