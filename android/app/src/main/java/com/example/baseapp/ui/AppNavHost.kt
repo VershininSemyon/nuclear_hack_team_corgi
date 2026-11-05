@@ -15,8 +15,10 @@ import com.example.baseapp.ui.auth.AuthScreen
 import com.example.baseapp.ui.auth.WelcomeScreen
 import com.example.baseapp.ui.editor.TranscriptEditorScreen
 import com.example.baseapp.ui.library.TranscriptListScreen
+import com.example.baseapp.ui.library.AudioLibraryScreen
 
 object Routes {
+    const val AUDIO_LIBRARY = "audio_library"
     const val TRANSCRIPTION = "transcription"
     const val LIBRARY = "library"
     const val EDITOR = "editor/{id}"
@@ -77,8 +79,19 @@ private fun MainAppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = Routes.TRANSCRIPTION,
+        startDestination = Routes.AUDIO_LIBRARY,
     ) {
+        composable(Routes.AUDIO_LIBRARY) {
+            AudioLibraryScreen(
+                onOpenTranscription = {
+                    navController.navigate(Routes.TRANSCRIPTION)
+                },
+                onOpenTranscripts = {
+                    navController.navigate(Routes.LIBRARY)
+                },
+            )
+        }
+
         composable(Routes.TRANSCRIPTION) {
             TranscriptionScreen(
                 onOpenLibrary = {

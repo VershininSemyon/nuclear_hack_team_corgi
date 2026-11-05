@@ -10,6 +10,7 @@ import com.example.baseapp.data.network.TokenManager
 import com.example.baseapp.data.repository.AuthRepository
 import com.example.baseapp.data.repository.SessionManager
 import com.example.baseapp.data.repository.SyncManager
+import com.example.baseapp.data.repository.AudioRepository
 import com.example.baseapp.transcriber.model.GigaAmModelManager
 
 class AppContainer(context: Context) {
@@ -26,6 +27,10 @@ class AppContainer(context: Context) {
 
     val authRepository: AuthRepository by lazy {
         AuthRepository(sessionManager)
+    }
+
+    val audioRepository: AudioRepository by lazy {
+        AudioRepository(database, authRepository)
     }
 
     val transcriptRepository: TranscriptRepository by lazy {

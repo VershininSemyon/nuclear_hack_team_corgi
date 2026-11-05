@@ -28,4 +28,7 @@ interface AudioDao {
 
     @Query("SELECT * FROM audios WHERE syncStatus != 0")
     suspend fun getUnsynced(): List<AudioEntity>
+
+    @Query("SELECT * FROM audios WHERE filePath = :filePath AND deletedAt IS NULL LIMIT 1")
+    suspend fun getByFilePath(filePath: String): AudioEntity?
 }

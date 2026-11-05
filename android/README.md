@@ -9,7 +9,9 @@ sherpa-onnx. Аудио никуда не отправляется. Модель
 хранится в `filesDir/models/gigaam-v3/`; в APK и Git она не входит.
 
 # Запуск
+./gradlew clean assembleDebug
 ./gradlew installDebug
+adb shell am force-stop com.example.baseapp
 adb shell am start -n com.example.baseapp/.MainActivity
 
 ## Возможности

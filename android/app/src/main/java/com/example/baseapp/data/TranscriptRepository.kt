@@ -27,7 +27,22 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
         val status = if (authRepository.isLoggedIn()) SyncStatus.CREATED else SyncStatus.SYNCED
 
         return database.withTransaction {
-            val audioId = audioDao.insert(AudioEntity(title = cleanTitle, filePath = audioFile.absolutePath, mimeType = "audio/${audioFormat.name.lowercase()}", createdAt = now, updatedAt = now, syncStatus = status))
+            val existingAudio = audioDao.getByFilePath(audioFile.absolutePath)
+
+            val audioId = if (existingAudio != null) {
+                existingAudio.id
+            } else {
+                audioDao.insert(
+                    AudioEntity(
+                        title = cleanTitle,
+                        filePath = audioFile.absolutePath,
+                        mimeType = "audio/${audioFormat.name.lowercase()}",
+                        createdAt = now,
+                        updatedAt = now,
+                        syncStatus = status,
+                    )
+                )
+            }
             val transcriptId = transcriptDao.insertTranscript(TranscriptEntity(audioLocalId = audioId, title = cleanTitle, text = result.text, originalText = result.text, audioFileName = audioFileName, audioFormat = audioFormat.name, createdAt = now, updatedAt = now, language = result.language ?: "ru", isEdited = false, syncStatus = status))
             
             if (result.words.isNotEmpty()) transcriptDao.insertWords(result.words.mapIndexed { i, w -> TranscriptWordEntity(transcriptId = transcriptId, position = i, word = w.word, startMs = w.startMs, endMs = w.endMs, speaker = w.speaker) })
@@ -46,9 +61,8 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
     }
 
     suspend fun delete(id: Long) = database.withTransaction {
-        val t = transcriptDao.getById(id) ?: return@withTransaction
+        transcriptDao.getById(id) ?: return@withTransaction
         transcriptDao.softDelete(id)
-        audioDao.softDelete(t.audioLocalId)
     }
 
     private fun defaultTitle(f: String) = f.substringBeforeLast('.', f).ifBlank { "Расшифровка" }
