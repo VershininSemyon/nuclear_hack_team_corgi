@@ -19,7 +19,8 @@ data class StoredTranscript(
     val segments: List<TranscriptSegment>,
     val isEdited: Boolean,
 ) {
-    val hasTimestamps: Boolean get() = words.isNotEmpty()
+    val hasTimestamps: Boolean
+        get() = words.isNotEmpty()
 
     val timestampsMatchCurrentText: Boolean
         get() = !isEdited && text == originalText
@@ -30,6 +31,7 @@ data class TranscriptSummary(
     val id: Long,
     val title: String,
     val snippet: String,
+    val audioFileName: String,
     val audioFormat: AudioFormat,
     val createdAt: Long,
     val updatedAt: Long,

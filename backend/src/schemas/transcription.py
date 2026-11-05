@@ -1,9 +1,8 @@
 
 import uuid
 from datetime import datetime
-
 import pydantic
-from pydantic import NonNegativeInt, model_validator
+from pydantic import NonNegativeInt
 
 
 class TimestampSchema(pydantic.BaseModel):
@@ -19,8 +18,6 @@ class WordsDataSchema(pydantic.BaseModel):
     start_time: TimestampSchema
     end_time: TimestampSchema
 
-    # TODO: написать валидацию, что end_time > start_time
-
 
 class TranscriptionCreateSchema(pydantic.BaseModel):
     text: str
@@ -33,15 +30,9 @@ class TranscriptionCreateSchema(pydantic.BaseModel):
 class TranscriptionReadSchema(TranscriptionCreateSchema):
     id: uuid.UUID
     audio_id: uuid.UUID
-
-    text: str
-    speaker_count: int
-    word_count: int
-    phrase_count: int
-    words_data: list[WordsDataSchema]
-
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
 
     class Config:
         from_attributes = True

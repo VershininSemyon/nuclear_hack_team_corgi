@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui.transcription
 
 import android.app.Application
@@ -30,29 +31,31 @@ import kotlinx.coroutines.withContext
 
 data class TranscriptionUiState(
     val audio: AudioFileInfo? = null,
+    val result: TranscriptionResult? = null,
+    val savedTranscriptId: Long? = null,
+    val progress: Float = 0f,
+    val isImporting: Boolean = false,
     val isRecording: Boolean = false,
     val isStartingRecording: Boolean = false,
-    val recordingElapsedMs: Long = 0L,
-    val isImporting: Boolean = false,
     val isTranscribing: Boolean = false,
-    val progress: Float = 0f,
-    val result: TranscriptionResult? = null,
-    val errorMessage: String? = null,
-    val modelStatus: ModelStatus = ModelStatus.Missing(emptyList()),
     val isSaving: Boolean = false,
-    val savedTranscriptId: Long? = null,
+    val recordingElapsedMs: Long = 0L,
+    val errorMessage: String? = null,
     val message: String? = null,
+    val modelStatus: ModelStatus,
 ) {
     val canTranscribe: Boolean
         get() = audio != null &&
+            modelStatus is ModelStatus.Installed &&
             !isTranscribing &&
             !isRecording &&
-            !isStartingRecording &&
-            !isImporting &&
-            modelStatus is ModelStatus.Installed
+            !isImporting
 
     val canSave: Boolean
-        get() = result != null && !isSaving && savedTranscriptId == null
+        get() = result != null &&
+            audio != null &&
+            !isSaving &&
+            savedTranscriptId == null
 }
 
 class TranscriptionViewModel(
@@ -61,38 +64,55 @@ class TranscriptionViewModel(
     private val repository: TranscriptRepository,
 ) : AndroidViewModel(application) {
 
-    private val app = application.applicationContext
-    private val recorder = WavRecorder(app)
+    private val app = application
+
+    private val recorder = WavRecorder(application)
+
     private val transcriber: Transcriber =
-        TranscriberFactory.create(app, modelManager)
+        TranscriberFactory.create(application, modelManager)
 
     private val _state = MutableStateFlow(
-        TranscriptionUiState(modelStatus = modelManager.status.value),
+        TranscriptionUiState(
+            modelStatus = modelManager.status.value,
+        )
     )
+
     val state: StateFlow<TranscriptionUiState> = _state.asStateFlow()
 
+    private var recordingStartedAt = 0L
     private var recordingTicker: Job? = null
-    private var recordingStartedAt: Long = 0L
 
     init {
         viewModelScope.launch {
             modelManager.status.collect { status ->
-                _state.update { it.copy(modelStatus = status) }
+                _state.update {
+                    it.copy(modelStatus = status)
+                }
             }
         }
-        modelManager.refresh()
     }
 
     fun importAudio(uri: Uri) {
-        if (_state.value.isImporting || _state.value.isTranscribing) return
+        if (
+            _state.value.isImporting ||
+            _state.value.isRecording ||
+            _state.value.isTranscribing
+        ) return
+
         viewModelScope.launch {
             _state.update {
-                it.copy(isImporting = true, errorMessage = null, message = null)
+                it.copy(
+                    isImporting = true,
+                    errorMessage = null,
+                    message = null,
+                )
             }
+
             try {
                 val info = withContext(Dispatchers.IO) {
                     AudioFileStore.importFromUri(app, uri)
                 }
+
                 _state.update {
                     it.copy(
                         audio = info,
@@ -106,7 +126,9 @@ class TranscriptionViewModel(
                 _state.update {
                     it.copy(
                         isImporting = false,
-                        errorMessage = t.userMessage("Не удалось загрузить аудиофайл"),
+                        errorMessage = t.userMessage(
+                            "Не удалось загрузить аудиофайл"
+                        ),
                     )
                 }
             }
@@ -115,7 +137,12 @@ class TranscriptionViewModel(
 
     fun startRecording() {
         val current = _state.value
-        if (current.isRecording || current.isStartingRecording || current.isTranscribing) return
+
+        if (
+            current.isRecording ||
+            current.isStartingRecording ||
+            current.isTranscribing
+        ) return
 
         viewModelScope.launch {
             _state.update {
@@ -125,9 +152,14 @@ class TranscriptionViewModel(
                     message = null,
                 )
             }
+
             try {
-                withContext(Dispatchers.IO) { recorder.start() }
+                withContext(Dispatchers.IO) {
+                    recorder.start()
+                }
+
                 recordingStartedAt = System.currentTimeMillis()
+
                 _state.update {
                     it.copy(
                         isRecording = true,
@@ -139,12 +171,15 @@ class TranscriptionViewModel(
                         progress = 0f,
                     )
                 }
+
                 startTicker()
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(
                         isStartingRecording = false,
-                        errorMessage = t.userMessage("Не удалось начать запись"),
+                        errorMessage = t.userMessage(
+                            "Не удалось начать запись"
+                        ),
                     )
                 }
             }
@@ -153,10 +188,15 @@ class TranscriptionViewModel(
 
     fun stopRecording() {
         if (!_state.value.isRecording) return
+
         stopTicker()
+
         viewModelScope.launch {
             try {
-                val file = withContext(Dispatchers.IO) { recorder.stop() }
+                val file = withContext(Dispatchers.IO) {
+                    recorder.stop()
+                }
+
                 if (file == null) {
                     _state.update {
                         it.copy(
@@ -165,32 +205,36 @@ class TranscriptionViewModel(
                             errorMessage = "Запись получилась пустой",
                         )
                     }
-                } else {
-                    val info = withContext(Dispatchers.IO) {
-                        AudioFileStore.describeValidated(
-                            file = file,
-                            displayName = file.name,
-                            format = AudioFormat.WAV,
-                            mimeType = "audio/wav",
-                        )
-                    }
-                    _state.update {
-                        it.copy(
-                            isRecording = false,
-                            recordingElapsedMs = 0L,
-                            audio = info,
-                            result = null,
-                            savedTranscriptId = null,
-                            progress = 0f,
-                        )
-                    }
+                    return@launch
+                }
+
+                val info = withContext(Dispatchers.IO) {
+                    AudioFileStore.describeValidated(
+                        file = file,
+                        displayName = file.name,
+                        format = AudioFormat.WAV,
+                        mimeType = "audio/wav",
+                    )
+                }
+
+                _state.update {
+                    it.copy(
+                        isRecording = false,
+                        recordingElapsedMs = 0L,
+                        audio = info,
+                        result = null,
+                        savedTranscriptId = null,
+                        progress = 0f,
+                    )
                 }
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(
                         isRecording = false,
                         recordingElapsedMs = 0L,
-                        errorMessage = t.userMessage("Не удалось остановить запись"),
+                        errorMessage = t.userMessage(
+                            "Не удалось остановить запись"
+                        ),
                     )
                 }
             }
@@ -198,7 +242,11 @@ class TranscriptionViewModel(
     }
 
     fun clearAudio() {
-        if (_state.value.isRecording || _state.value.isTranscribing) return
+        if (
+            _state.value.isRecording ||
+            _state.value.isTranscribing
+        ) return
+
         _state.update {
             it.copy(
                 audio = null,
@@ -213,12 +261,12 @@ class TranscriptionViewModel(
 
     fun transcribe() {
         val audio = _state.value.audio ?: return
+
         if (!_state.value.canTranscribe) {
             if (_state.value.modelStatus !is ModelStatus.Installed) {
                 _state.update {
                     it.copy(
-                        errorMessage = (it.modelStatus as? ModelStatus.Missing)?.message
-                            ?: "Модель GigaAM v3 не установлена",
+                        errorMessage = "Модель GigaAM v3 не установлена",
                     )
                 }
             }
@@ -236,15 +284,21 @@ class TranscriptionViewModel(
                     savedTranscriptId = null,
                 )
             }
+
             try {
                 val result = withContext(Dispatchers.Default) {
                     transcriber.transcribe(audio.path) { value ->
                         _state.update { state ->
-                            state.copy(progress = value.coerceIn(0f, 1f))
+                            state.copy(
+                                progress = value.coerceIn(0f, 1f),
+                            )
                         }
                     }
                 }
-                val empty = result.text.isBlank() && result.words.isEmpty()
+
+                val empty = result.text.isBlank() &&
+                    result.words.isEmpty()
+
                 _state.update {
                     it.copy(
                         isTranscribing = false,
@@ -262,7 +316,9 @@ class TranscriptionViewModel(
                 _state.update {
                     it.copy(
                         isTranscribing = false,
-                        errorMessage = t.userMessage("Ошибка распознавания"),
+                        errorMessage = t.userMessage(
+                            "Ошибка распознавания"
+                        ),
                     )
                 }
             }
@@ -273,10 +329,20 @@ class TranscriptionViewModel(
         val snapshot = _state.value
         val result = snapshot.result ?: return
         val audio = snapshot.audio ?: return
-        if (snapshot.isSaving || snapshot.savedTranscriptId != null) return
+
+        if (
+            snapshot.isSaving ||
+            snapshot.savedTranscriptId != null
+        ) return
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, errorMessage = null) }
+            _state.update {
+                it.copy(
+                    isSaving = true,
+                    errorMessage = null,
+                )
+            }
+
             try {
                 val id = withContext(Dispatchers.IO) {
                     repository.saveNew(
@@ -284,8 +350,10 @@ class TranscriptionViewModel(
                         title = title,
                         audioFileName = audio.displayName,
                         audioFormat = audio.format,
+                        audioFile = audio.file,
                     )
                 }
+
                 _state.update {
                     it.copy(
                         isSaving = false,
@@ -297,7 +365,9 @@ class TranscriptionViewModel(
                 _state.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = t.userMessage("Не удалось сохранить расшифровку"),
+                        errorMessage = t.userMessage(
+                            "Не удалось сохранить расшифровку"
+                        ),
                     )
                 }
             }
@@ -309,7 +379,7 @@ class TranscriptionViewModel(
             try {
                 modelManager.install()
             } catch (_: Throwable) {
-                // Текст ошибки уже находится в modelStatus.
+                // Ошибка установки отображается через modelStatus.
             }
         }
     }
@@ -319,30 +389,39 @@ class TranscriptionViewModel(
             try {
                 modelManager.installFromUri(uri, fileName)
             } catch (_: Throwable) {
-                // Текст ошибки уже находится в modelStatus.
+                // Ошибка установки отображается через modelStatus.
             }
         }
     }
 
-    fun refreshModelStatus() = modelManager.refresh()
+    fun refreshModelStatus() {
+        modelManager.refresh()
+    }
 
     fun dismissMessage() {
-        _state.update { it.copy(message = null) }
+        _state.update {
+            it.copy(message = null)
+        }
     }
 
     fun dismissError() {
-        _state.update { it.copy(errorMessage = null) }
+        _state.update {
+            it.copy(errorMessage = null)
+        }
     }
 
     private fun startTicker() {
         stopTicker()
+
         recordingTicker = viewModelScope.launch {
             while (_state.value.isRecording) {
                 _state.update {
                     it.copy(
-                        recordingElapsedMs = System.currentTimeMillis() - recordingStartedAt,
+                        recordingElapsedMs =
+                            System.currentTimeMillis() - recordingStartedAt,
                     )
                 }
+
                 delay(200)
             }
         }
@@ -361,10 +440,11 @@ class TranscriptionViewModel(
     }
 
     private fun Throwable.userMessage(fallback: String): String {
-        val message = message?.trim()
+        val error = message?.trim()
+
         return when {
-            this is AudioException && !message.isNullOrBlank() -> message
-            !message.isNullOrBlank() -> message
+            this is AudioException && !error.isNullOrBlank() -> error
+            !error.isNullOrBlank() -> error
             else -> fallback
         }
     }
@@ -375,8 +455,11 @@ class TranscriptionViewModel(
             container: AppContainer,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
+
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                override fun <T : ViewModel> create(
+                    modelClass: Class<T>,
+                ): T {
                     return TranscriptionViewModel(
                         application = application,
                         modelManager = container.modelManager,
