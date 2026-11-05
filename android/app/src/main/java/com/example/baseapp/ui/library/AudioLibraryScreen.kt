@@ -94,13 +94,6 @@ fun AudioLibraryScreen(
                 },
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onOpenTranscription,
-            ) {
-                Text("AI")
-            }
-        },
     ) { padding ->
         Column(
             modifier = Modifier
