@@ -29,6 +29,7 @@ import java.io.File
 fun AudioLibraryScreen(
     onOpenTranscription: () -> Unit,
     onOpenTranscripts: () -> Unit,
+    onOpenAudioDetails: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -194,6 +195,9 @@ fun AudioLibraryScreen(
                         AudioItem(
                             audio = audio,
                             isPlaying = playingAudioId == audio.id,
+                            onClick = {
+                                onOpenAudioDetails(audio.id)
+                            },
                             onPlay = {
                                 try {
                                     player?.release()
@@ -257,6 +261,7 @@ fun AudioLibraryScreen(
 private fun AudioItem(
     audio: AudioEntity,
     isPlaying: Boolean,
+    onClick: () -> Unit,
     onPlay: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -265,6 +270,7 @@ private fun AudioItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
     ) {
         Row(
             modifier = Modifier

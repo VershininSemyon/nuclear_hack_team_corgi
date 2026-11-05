@@ -16,14 +16,17 @@ import com.example.baseapp.ui.auth.WelcomeScreen
 import com.example.baseapp.ui.editor.TranscriptEditorScreen
 import com.example.baseapp.ui.library.TranscriptListScreen
 import com.example.baseapp.ui.library.AudioLibraryScreen
+import com.example.baseapp.ui.library.AudioDetailScreen
 
 object Routes {
     const val AUDIO_LIBRARY = "audio_library"
+    const val AUDIO_DETAILS = "audio_details/{id}"
     const val TRANSCRIPTION = "transcription"
     const val LIBRARY = "library"
     const val EDITOR = "editor/{id}"
 
     fun editor(id: Long): String = "editor/$id"
+    fun audioDetails(id: Long): String = "audio_details/$id"
 }
 
 @Composable
@@ -88,6 +91,32 @@ private fun MainAppNavigation() {
                 },
                 onOpenTranscripts = {
                     navController.navigate(Routes.LIBRARY)
+                },
+                onOpenAudioDetails = { id ->
+                    navController.navigate(Routes.audioDetails(id))
+                },
+            )
+        }
+
+        composable(
+            route = Routes.AUDIO_DETAILS,
+            arguments = listOf(
+                navArgument("id") {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val audioId = checkNotNull(
+                backStackEntry.arguments?.getLong("id"),
+            )
+
+            AudioDetailScreen(
+                audioId = audioId,
+                onBack = {
+                    navController.popBackStack()
+                },
+                onOpenTranscript = { id ->
+                    navController.navigate(Routes.editor(id))
                 },
             )
         }

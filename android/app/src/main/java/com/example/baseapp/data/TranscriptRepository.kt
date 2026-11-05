@@ -13,6 +13,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
 
+data class AudioTranscriptSummary(
+    val id: Long,
+    val title: String,
+    val snippet: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val isEdited: Boolean,
+    val speakersCount: Int,
+    val wordsCount: Int,
+    val phrasesCount: Int,
+)
+
 class TranscriptRepository(private val database: AppDatabase, private val authRepository: AuthRepository) {
     private val transcriptDao = database.transcriptDao()
     private val audioDao = database.audioDao()
@@ -20,6 +32,32 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
     val transcripts: Flow<List<TranscriptSummary>> = transcriptDao.observeAll().map { entities -> entities.map { it.toSummary() } }
     fun observe(id: Long): Flow<StoredTranscript?> = transcriptDao.observeDetail(id).map { it?.toStored() }
     suspend fun get(id: Long): StoredTranscript? = transcriptDao.getDetail(id)?.toStored()
+
+    fun observeForAudio(
+        audioId: Long,
+    ): Flow<List<AudioTranscriptSummary>> =
+        transcriptDao.observeByAudioId(audioId).map { transcripts ->
+            transcripts.map { item ->
+                val speakers = (
+                    item.segments.map { it.speaker } +
+                        item.words.mapNotNull { it.speaker }
+                    )
+                    .filter { it.isNotBlank() }
+                    .distinct()
+
+                AudioTranscriptSummary(
+                    id = item.transcript.id,
+                    title = item.transcript.title,
+                    snippet = snippet(item.transcript.text),
+                    createdAt = item.transcript.createdAt,
+                    updatedAt = item.transcript.updatedAt,
+                    isEdited = item.transcript.isEdited,
+                    speakersCount = speakers.size,
+                    wordsCount = item.words.size,
+                    phrasesCount = item.segments.size,
+                )
+            }
+        }
 
     suspend fun saveNew(result: TranscriptionResult, title: String, audioFileName: String, audioFormat: AudioFormat, audioFile: File): Long {
         val now = System.currentTimeMillis()
