@@ -1,5 +1,7 @@
+
 package com.example.baseapp.ui.library
 
+import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,9 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.baseapp.appContainer
-import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.data.AudioTranscriptSummary
+import com.example.baseapp.transcriber.model.ModelStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,7 +31,14 @@ fun AudioDetailScreen(
 ) {
     val context = LocalContext.current
     val container = context.appContainer
+    val application = context.applicationContext as Application
     val scope = rememberCoroutineScope()
+
+    val recognitionViewModel: AudioRecognitionViewModel = viewModel(
+        key = "audio_recognition_$audioId",
+        factory = AudioRecognitionViewModel.factory(application, container),
+    )
+    val recognitionState by recognitionViewModel.state.collectAsStateWithLifecycle()
 
     val audio by container.audioRepository
         .observe(audioId)
@@ -128,6 +138,70 @@ fun AudioDetailScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            recognitionViewModel.recognize(
+                                filePath = audio!!.filePath,
+                                title = title.trim().ifBlank {
+                                    File(audio!!.filePath).nameWithoutExtension
+                                },
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isSaving &&
+                            !isDeleting &&
+                            !recognitionState.isTranscribing &&
+                            !recognitionState.isSaving &&
+                            !recognitionState.isCompleted &&
+                            recognitionState.modelStatus is ModelStatus.Installed,
+                    ) {
+                        Text(
+                            when {
+                                recognitionState.isTranscribing -> "Распознавание..."
+                                recognitionState.isSaving -> "Сохранение расшифровки..."
+                                recognitionState.isCompleted -> "Расшифровка готова"
+                                else -> "Распознать"
+                            },
+                        )
+                    }
+
+                    if (recognitionState.modelStatus !is ModelStatus.Installed) {
+                        Text(
+                            text = "Для распознавания установите модель GigaAM v3 " +
+                                "на экране «Расшифровка диалога».",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+
+                    if (recognitionState.isTranscribing) {
+                        LinearProgressIndicator(
+                            progress = { recognitionState.progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                        )
+                    }
+
+                    recognitionState.errorMessage?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+
+                    recognitionState.message?.let { info ->
+                        Text(
+                            text = info,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
 
                     Spacer(Modifier.height(12.dp))
 
