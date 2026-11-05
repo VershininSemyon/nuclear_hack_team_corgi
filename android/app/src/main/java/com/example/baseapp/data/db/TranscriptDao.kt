@@ -1,7 +1,12 @@
 
 package com.example.baseapp.data.db
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -42,12 +47,19 @@ abstract class TranscriptDao {
         """
         SELECT * FROM transcripts
         WHERE id = :id AND deletedAt IS NULL
+        LIMIT 1
         """
     )
     abstract suspend fun getById(id: Long): TranscriptEntity?
 
-    @Query("SELECT * FROM transcripts WHERE serverId = :serverId")
+    @Query("SELECT * FROM transcripts WHERE id = :id LIMIT 1")
+    abstract suspend fun getByIdIncludingDeleted(id: Long): TranscriptEntity?
+
+    @Query("SELECT * FROM transcripts WHERE serverId = :serverId LIMIT 1")
     abstract suspend fun getByServerId(serverId: String): TranscriptEntity?
+
+    @Query("SELECT * FROM transcripts WHERE audioLocalId = :audioId")
+    abstract suspend fun getByAudioId(audioId: Long): List<TranscriptEntity>
 
     @Transaction
     @Query(
@@ -58,18 +70,14 @@ abstract class TranscriptDao {
     )
     abstract suspend fun getDetail(id: Long): TranscriptWithRelations?
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun insertTranscript(entity: TranscriptEntity): Long
 
-    @Insert
-    abstract suspend fun insertWords(
-        words: List<TranscriptWordEntity>,
-    )
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertWords(words: List<TranscriptWordEntity>)
 
-    @Insert
-    abstract suspend fun insertSegments(
-        segments: List<TranscriptSegmentEntity>,
-    )
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun insertSegments(segments: List<TranscriptSegmentEntity>)
 
     @Query(
         """
@@ -90,6 +98,23 @@ abstract class TranscriptDao {
         updatedAt: Long,
         syncStatus: Int = SyncStatus.UPDATED,
     )
+
+    @Query(
+        """
+        UPDATE transcripts
+        SET serverId = :serverId,
+            syncStatus = :status
+        WHERE id = :id
+        """
+    )
+    abstract suspend fun markSynced(
+        id: Long,
+        serverId: String,
+        status: Int = SyncStatus.SYNCED,
+    )
+
+    @Query("UPDATE transcripts SET syncStatus = :status WHERE id = :id")
+    abstract suspend fun markSyncStatus(id: Long, status: Int)
 
     @Query(
         """
@@ -122,9 +147,41 @@ abstract class TranscriptDao {
         status: Int = SyncStatus.DELETED,
     )
 
-    @Query("SELECT * FROM transcripts WHERE syncStatus != 0")
-    abstract suspend fun getUnsynced(): List<TranscriptEntity>
+    @Query("SELECT * FROM transcripts WHERE syncStatus != :synced")
+    abstract suspend fun getUnsynced(
+        synced: Int = SyncStatus.SYNCED,
+    ): List<TranscriptEntity>
 
     @Update
     abstract suspend fun update(entity: TranscriptEntity)
+
+    @Query("DELETE FROM transcript_words WHERE transcriptId = :transcriptId")
+    abstract suspend fun deleteWords(transcriptId: Long)
+
+    @Query("DELETE FROM transcript_segments WHERE transcriptId = :transcriptId")
+    abstract suspend fun deleteSegments(transcriptId: Long)
+
+    @Transaction
+    open suspend fun replaceRelations(
+        transcriptId: Long,
+        words: List<TranscriptWordEntity>,
+        segments: List<TranscriptSegmentEntity>,
+    ) {
+        deleteWords(transcriptId)
+        deleteSegments(transcriptId)
+
+        if (words.isNotEmpty()) {
+            insertWords(words.map { it.copy(transcriptId = transcriptId, id = 0L) })
+        }
+
+        if (segments.isNotEmpty()) {
+            insertSegments(segments.map { it.copy(transcriptId = transcriptId, id = 0L) })
+        }
+    }
+
+    @Query("DELETE FROM transcripts WHERE id = :id")
+    abstract suspend fun hardDelete(id: Long)
+
+    @Query("DELETE FROM transcripts")
+    abstract suspend fun clearAll()
 }

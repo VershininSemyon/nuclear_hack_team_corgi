@@ -25,7 +25,7 @@ class AudioReadSchema(pydantic.BaseModel):
 
 class AudioWithDataSchema(AudioReadSchema):
     audio_base64: str | None = None
-    content_type: str = "audio/mpeg"
+    content_type: str = "application/octet-stream"
 
 
 class AudioUpdateSchema(pydantic.BaseModel):

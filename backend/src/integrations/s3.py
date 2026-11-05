@@ -20,11 +20,13 @@ class S3Service:
     async def ensure_bucket(self) -> None:
         if self._bucket_ensured:
             return
+
         async with self.session.client(**self._client_kwargs) as client:
             try:
                 await client.head_bucket(Bucket=self.bucket)
             except ClientError:
                 await client.create_bucket(Bucket=self.bucket)
+
         self._bucket_ensured = True
 
     async def upload_file(
@@ -34,6 +36,7 @@ class S3Service:
         content_type: str = "audio/mpeg",
     ) -> str:
         await self.ensure_bucket()
+
         async with self.session.client(**self._client_kwargs) as client:
             await client.put_object(
                 Bucket=self.bucket,
@@ -41,17 +44,36 @@ class S3Service:
                 Body=data,
                 ContentType=content_type,
             )
+
         return key
 
     async def download_file(self, key: str) -> bytes:
+        data, _ = await self.download_file_with_metadata(key)
+        return data
+
+    async def download_file_with_metadata(
+        self,
+        key: str,
+    ) -> tuple[bytes, str | None]:
         async with self.session.client(**self._client_kwargs) as client:
-            response = await client.get_object(Bucket=self.bucket, Key=key)
+            response = await client.get_object(
+                Bucket=self.bucket,
+                Key=key,
+            )
+
+            content_type = response.get("ContentType")
+
             async with response["Body"] as stream:
-                return await stream.read()
+                data = await stream.read()
+
+            return data, content_type
 
     async def delete_file(self, key: str) -> None:
         async with self.session.client(**self._client_kwargs) as client:
-            await client.delete_object(Bucket=self.bucket, Key=key)
+            await client.delete_object(
+                Bucket=self.bucket,
+                Key=key,
+            )
 
 
 s3_service = S3Service()

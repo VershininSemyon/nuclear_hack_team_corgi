@@ -25,8 +25,21 @@ class AppContainer(context: Context) {
         SessionManager(appContext)
     }
 
+    val syncManager: SyncManager by lazy {
+        SyncManager(
+            appContext,
+            database.audioDao(),
+            database.transcriptDao(),
+        )
+    }
+
     val authRepository: AuthRepository by lazy {
-        AuthRepository(sessionManager)
+        AuthRepository(
+            sessionManager = sessionManager,
+            database = database,
+            context = appContext,
+            syncManager = syncManager,
+        )
     }
 
     val audioRepository: AudioRepository by lazy {
@@ -35,14 +48,6 @@ class AppContainer(context: Context) {
 
     val transcriptRepository: TranscriptRepository by lazy {
         TranscriptRepository(database, authRepository)
-    }
-
-    val syncManager: SyncManager by lazy {
-        SyncManager(
-            appContext,
-            database.audioDao(),
-            database.transcriptDao(),
-        )
     }
 
     val modelManager: GigaAmModelManager by lazy {
