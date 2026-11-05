@@ -188,10 +188,14 @@ fun AuthScreen(
 
                     isLoading = false
 
-                    result.onFailure {
-                        errorMessage = it.message
-                            ?: "Не удалось выполнить запрос"
-                    }
+                    result
+                        .onSuccess {
+                            onBack()
+                        }
+                        .onFailure {
+                            errorMessage = it.message
+                                ?: "Не удалось выполнить запрос"
+                        }
                 }
             },
             modifier = Modifier.fillMaxWidth(),

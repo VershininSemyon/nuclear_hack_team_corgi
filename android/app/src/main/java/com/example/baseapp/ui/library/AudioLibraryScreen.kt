@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui.library
 
 import android.Manifest
@@ -27,8 +28,7 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioLibraryScreen(
-    onOpenTranscription: () -> Unit,
-    onOpenTranscripts: () -> Unit,
+    onOpenProfile: () -> Unit,
     onOpenAudioDetails: (Long) -> Unit,
 ) {
     val context = LocalContext.current
@@ -86,10 +86,14 @@ fun AudioLibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Мои аудиозаписи") },
+                title = {
+                    Text("Мои аудиозаписи")
+                },
                 actions = {
-                    TextButton(onClick = onOpenTranscripts) {
-                        Text("Расшифровки")
+                    TextButton(
+                        onClick = onOpenProfile,
+                    ) {
+                        Text("Профиль")
                     }
                 },
             )
@@ -115,7 +119,7 @@ fun AudioLibraryScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        if (state.isImporting) "Импорт..." else "Импортировать",
+                        if (state.isImporting) "Импорт..." else "Загрузить аудио",
                     )
                 }
 
@@ -173,12 +177,14 @@ fun AudioLibraryScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Аудиозаписей пока нет.\nИмпортируйте файл или сделайте запись.",
+                        text = "Аудиозаписей пока нет.\n" +
+                            "Загрузите файл или сделайте новую запись.",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             } else {
                 LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(
@@ -206,19 +212,23 @@ fun AudioLibraryScreen(
                                     player = newPlayer
 
                                     newPlayer.setDataSource(file.absolutePath)
+
                                     newPlayer.setOnPreparedListener {
                                         it.start()
                                         playingAudioId = audio.id
                                     }
+
                                     newPlayer.setOnCompletionListener {
                                         it.release()
                                         player = null
                                         playingAudioId = null
                                     }
+
                                     newPlayer.prepareAsync()
                                 } catch (t: Throwable) {
                                     playbackError = t.message
                                         ?: "Не удалось воспроизвести файл"
+
                                     player?.release()
                                     player = null
                                     playingAudioId = null
@@ -238,11 +248,21 @@ fun AudioLibraryScreen(
 
     playbackError?.let { message ->
         AlertDialog(
-            onDismissRequest = { playbackError = null },
-            title = { Text("Ошибка воспроизведения") },
-            text = { Text(message) },
+            onDismissRequest = {
+                playbackError = null
+            },
+            title = {
+                Text("Ошибка воспроизведения")
+            },
+            text = {
+                Text(message)
+            },
             confirmButton = {
-                TextButton(onClick = { playbackError = null }) {
+                TextButton(
+                    onClick = {
+                        playbackError = null
+                    },
+                ) {
                     Text("Закрыть")
                 }
             },

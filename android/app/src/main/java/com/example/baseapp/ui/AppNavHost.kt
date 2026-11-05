@@ -14,18 +14,23 @@ import com.example.baseapp.ui.auth.AuthMode
 import com.example.baseapp.ui.auth.AuthScreen
 import com.example.baseapp.ui.auth.WelcomeScreen
 import com.example.baseapp.ui.editor.TranscriptEditorScreen
-import com.example.baseapp.ui.library.TranscriptListScreen
-import com.example.baseapp.ui.library.AudioLibraryScreen
 import com.example.baseapp.ui.library.AudioDetailScreen
+import com.example.baseapp.ui.library.AudioLibraryScreen
+import com.example.baseapp.ui.TranscriptionScreen
+import com.example.baseapp.ui.profile.AccountScreen
 
 object Routes {
     const val AUDIO_LIBRARY = "audio_library"
     const val AUDIO_DETAILS = "audio_details/{id}"
     const val TRANSCRIPTION = "transcription"
-    const val LIBRARY = "library"
     const val EDITOR = "editor/{id}"
 
+    const val ACCOUNT = "account"
+    const val ACCOUNT_LOGIN = "account_login"
+    const val ACCOUNT_REGISTER = "account_register"
+
     fun editor(id: Long): String = "editor/$id"
+
     fun audioDetails(id: Long): String = "audio_details/$id"
 }
 
@@ -78,6 +83,9 @@ fun AppNavHost() {
 
 @Composable
 private fun MainAppNavigation() {
+    val app = LocalContext.current.applicationContext as BaseApp
+    val container = app.container
+
     val navController = rememberNavController()
 
     NavHost(
@@ -86,14 +94,47 @@ private fun MainAppNavigation() {
     ) {
         composable(Routes.AUDIO_LIBRARY) {
             AudioLibraryScreen(
-                onOpenTranscription = {
-                    navController.navigate(Routes.TRANSCRIPTION)
-                },
-                onOpenTranscripts = {
-                    navController.navigate(Routes.LIBRARY)
+                onOpenProfile = {
+                    navController.navigate(Routes.ACCOUNT)
                 },
                 onOpenAudioDetails = { id ->
                     navController.navigate(Routes.audioDetails(id))
+                },
+            )
+        }
+
+        composable(Routes.ACCOUNT) {
+            AccountScreen(
+                authRepository = container.authRepository,
+                syncManager = container.syncManager,
+                onBack = {
+                    navController.popBackStack()
+                },
+                onLogin = {
+                    navController.navigate(Routes.ACCOUNT_LOGIN)
+                },
+                onRegister = {
+                    navController.navigate(Routes.ACCOUNT_REGISTER)
+                },
+            )
+        }
+
+        composable(Routes.ACCOUNT_LOGIN) {
+            AuthScreen(
+                mode = AuthMode.LOGIN,
+                authRepository = container.authRepository,
+                onBack = {
+                    navController.popBackStack()
+                },
+            )
+        }
+
+        composable(Routes.ACCOUNT_REGISTER) {
+            AuthScreen(
+                mode = AuthMode.REGISTER,
+                authRepository = container.authRepository,
+                onBack = {
+                    navController.popBackStack()
                 },
             )
         }
@@ -124,21 +165,10 @@ private fun MainAppNavigation() {
         composable(Routes.TRANSCRIPTION) {
             TranscriptionScreen(
                 onOpenLibrary = {
-                    navController.navigate(Routes.LIBRARY)
+                    navController.popBackStack()
                 },
                 onOpenEditor = { id ->
                     navController.navigate(Routes.editor(id))
-                },
-            )
-        }
-
-        composable(Routes.LIBRARY) {
-            TranscriptListScreen(
-                onTranscriptClick = { id ->
-                    navController.navigate(Routes.editor(id))
-                },
-                onNewTranscriptClick = {
-                    navController.navigate(Routes.TRANSCRIPTION)
                 },
             )
         }
