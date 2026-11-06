@@ -36,7 +36,7 @@ class PasswordSettings(BaseModel):
 
 
 class MinioSettings(BaseModel):
-    MINIO_ENDPOINT: str = 'minio:9000'      # host:port внутри docker-сети
+    MINIO_ENDPOINT: str = 'minio:9000'
     MINIO_ROOT_USER: str
     MINIO_ROOT_PASSWORD: str
     MINIO_BUCKET: str = 'audios'

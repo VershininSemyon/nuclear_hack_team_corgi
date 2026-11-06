@@ -1,6 +1,4 @@
 
-from typing import Annotated
-
 from fastapi import APIRouter, Response, status
 
 from src.api.dependencies import CurrentUserDep, UserServiceDep

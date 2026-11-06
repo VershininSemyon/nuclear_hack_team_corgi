@@ -5,14 +5,14 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from src.api.routers.audio import audio_router
+from src.api.routers.auth import auth_router
+from src.api.routers.transcription import transcription_router
+from src.api.routers.user import user_router
 from src.config.settings import settings
 from src.db.database import engine
 from src.exceptions.base import AppError
-
-from src.api.routers.auth import auth_router
-from src.api.routers.user import user_router
-from src.api.routers.audio import audio_router
-from src.api.routers.transcription import transcription_router
 
 
 @asynccontextmanager

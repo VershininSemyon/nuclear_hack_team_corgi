@@ -1,14 +1,16 @@
 
 from typing import Annotated
-from fastapi import Cookie, Depends, HTTPException, status, Header
+
+from fastapi import Cookie, Depends, Header, HTTPException, status
+
 from src.db.database import async_session_factory
 from src.db.unitofwork import UnitOfWork
 from src.integrations.s3 import S3Service, s3_service
 from src.schemas.user import UserReadSchema
-from src.services.auth import AuthService
-from src.services.user import UserService
 from src.services.audio import AudioService
+from src.services.auth import AuthService
 from src.services.transcription import TranscriptionService
+from src.services.user import UserService
 
 
 def get_uow() -> UnitOfWork:
@@ -44,7 +46,7 @@ async def get_current_user(
     token = access_token
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ")[1]
-        
+
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Не предоставлен access токен")
     return await auth_service.authenticate_user(token)
