@@ -16,7 +16,6 @@ import com.example.baseapp.ui.library.AudioLibraryScreen
 object Routes {
     const val AUDIO_LIBRARY = "audio_library"
     const val AUDIO_DETAILS = "audio_details/{id}"
-    const val TRANSCRIPTION = "transcription"
     const val EDITOR = "editor/{id}"
 
     fun editor(id: Long): String = "editor/$id"
@@ -39,9 +38,6 @@ fun AppNavHost() {
                 onOpenAudioDetails = { id ->
                     navController.navigate(Routes.audioDetails(id))
                 },
-                onOpenTranscription = {
-                    navController.navigate(Routes.TRANSCRIPTION)
-                },
             )
         }
 
@@ -63,17 +59,6 @@ fun AppNavHost() {
                     navController.popBackStack()
                 },
                 onOpenTranscript = { id ->
-                    navController.navigate(Routes.editor(id))
-                },
-            )
-        }
-
-        composable(Routes.TRANSCRIPTION) {
-            TranscriptionScreen(
-                onOpenLibrary = {
-                    navController.popBackStack()
-                },
-                onOpenEditor = { id ->
                     navController.navigate(Routes.editor(id))
                 },
             )

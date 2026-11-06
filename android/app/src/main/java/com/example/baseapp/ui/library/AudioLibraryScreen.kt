@@ -32,7 +32,6 @@ import java.io.File
 @Composable
 fun AudioLibraryScreen(
     onOpenAudioDetails: (Long) -> Unit,
-    onOpenTranscription: () -> Unit,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
