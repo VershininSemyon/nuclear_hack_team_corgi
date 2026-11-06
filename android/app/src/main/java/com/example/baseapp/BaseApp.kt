@@ -6,10 +6,6 @@ import android.content.Context
 import com.example.baseapp.data.TranscriptDraftStore
 import com.example.baseapp.data.TranscriptRepository
 import com.example.baseapp.data.db.AppDatabase
-import com.example.baseapp.data.network.TokenManager
-import com.example.baseapp.data.repository.AuthRepository
-import com.example.baseapp.data.repository.SessionManager
-import com.example.baseapp.data.repository.SyncManager
 import com.example.baseapp.data.repository.AudioRepository
 import com.example.baseapp.transcriber.model.GigaAmModelManager
 
@@ -21,33 +17,12 @@ class AppContainer(context: Context) {
         AppDatabase.get(appContext)
     }
 
-    val sessionManager: SessionManager by lazy {
-        SessionManager(appContext)
-    }
-
-    val syncManager: SyncManager by lazy {
-        SyncManager(
-            appContext,
-            database.audioDao(),
-            database.transcriptDao(),
-        )
-    }
-
-    val authRepository: AuthRepository by lazy {
-        AuthRepository(
-            sessionManager = sessionManager,
-            database = database,
-            context = appContext,
-            syncManager = syncManager,
-        )
-    }
-
     val audioRepository: AudioRepository by lazy {
-        AudioRepository(database, authRepository)
+        AudioRepository(database)
     }
 
     val transcriptRepository: TranscriptRepository by lazy {
-        TranscriptRepository(database, authRepository)
+        TranscriptRepository(database)
     }
 
     val modelManager: GigaAmModelManager by lazy {
@@ -56,10 +31,6 @@ class AppContainer(context: Context) {
 
     val draftStore: TranscriptDraftStore by lazy {
         TranscriptDraftStore(appContext)
-    }
-
-    init {
-        TokenManager.init(appContext)
     }
 }
 

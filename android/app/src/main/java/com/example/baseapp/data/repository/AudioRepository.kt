@@ -3,16 +3,14 @@ package com.example.baseapp.data.repository
 
 import androidx.room.withTransaction
 import com.example.baseapp.audio.AudioFileInfo
+import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.data.db.AppDatabase
 import com.example.baseapp.data.db.AudioEntity
-import com.example.baseapp.data.db.SyncStatus
 import kotlinx.coroutines.flow.Flow
 
 class AudioRepository(
     private val database: AppDatabase,
-    private val authRepository: AuthRepository,
 ) {
-
     private val audioDao = database.audioDao()
     private val transcriptDao = database.transcriptDao()
 
@@ -26,12 +24,6 @@ class AudioRepository(
 
     suspend fun save(info: AudioFileInfo): Long {
         val now = System.currentTimeMillis()
-
-        val status = if (authRepository.isLoggedIn()) {
-            SyncStatus.CREATED
-        } else {
-            SyncStatus.SYNCED
-        }
 
         return database.withTransaction {
             val existing = audioDao.getByFilePath(info.path)
@@ -47,18 +39,12 @@ class AudioRepository(
                         ).ifBlank { "Аудиозапись" },
                         filePath = info.path,
                         mimeType = info.mimeType ?: when (info.format) {
-                            com.example.baseapp.audio.AudioFormat.WAV ->
-                                "audio/wav"
-
-                            com.example.baseapp.audio.AudioFormat.MP3 ->
-                                "audio/mpeg"
-
-                            com.example.baseapp.audio.AudioFormat.MP4 ->
-                                "video/mp4"
+                            AudioFormat.WAV -> "audio/wav"
+                            AudioFormat.MP3 -> "audio/mpeg"
+                            AudioFormat.MP4 -> "video/mp4"
                         },
                         createdAt = now,
                         updatedAt = now,
-                        syncStatus = status,
                     ),
                 )
             }
@@ -68,27 +54,14 @@ class AudioRepository(
     suspend fun updateDetails(
         id: Long,
         title: String,
-        description: String?,
     ): Boolean = database.withTransaction {
         val current = audioDao.getById(id)
             ?: return@withTransaction false
 
-        val now = System.currentTimeMillis()
-
-        val newStatus = if (current.syncStatus == SyncStatus.SYNCED) {
-            SyncStatus.UPDATED
-        } else {
-            current.syncStatus
-        }
-
         audioDao.update(
             current.copy(
                 title = title.trim().ifBlank { current.title },
-                description = description
-                    ?.trim()
-                    ?.takeIf { it.isNotEmpty() },
-                updatedAt = now,
-                syncStatus = newStatus,
+                updatedAt = System.currentTimeMillis(),
             ),
         )
 
@@ -100,17 +73,11 @@ class AudioRepository(
             val audio = audioDao.getById(id)
                 ?: return@withTransaction false
 
-            val now = System.currentTimeMillis()
+            transcriptDao.getByAudioId(id).forEach { transcript ->
+                transcriptDao.hardDelete(transcript.id)
+            }
 
-            transcriptDao.softDeleteByAudioId(
-                audioId = id,
-                deletedAt = now,
-            )
-
-            audioDao.softDelete(
-                id = id,
-                deletedAt = now,
-            )
+            audioDao.hardDelete(audio.id)
 
             true
         }

@@ -31,9 +31,7 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioLibraryScreen(
-    onOpenProfile: () -> Unit,
     onOpenAudioDetails: (Long) -> Unit,
-    onOpenTranscription: () -> Unit,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -105,19 +103,6 @@ fun AudioLibraryScreen(
                 title = {
                     Text("Мои аудиозаписи")
                 },
-                actions = {
-                    TextButton(
-                        onClick = onOpenTranscription,
-                    ) {
-                        Text("Расшифровка")
-                    }
-
-                    TextButton(
-                        onClick = onOpenProfile,
-                    ) {
-                        Text("Профиль")
-                    }
-                },
             )
         },
     ) { padding ->
@@ -127,9 +112,6 @@ fun AudioLibraryScreen(
                 .padding(padding)
                 .padding(16.dp),
         ) {
-            // Состояние модели и управление её установкой.
-            // Карточка использует тот же GigaAmModelManager,
-            // что и существующий экран расшифровки.
             ModelStatusCard(
                 status = state.modelStatus,
                 onInstall = viewModel::installModel,
