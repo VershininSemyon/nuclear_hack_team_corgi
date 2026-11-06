@@ -75,7 +75,7 @@ asr.close()
 | `scripts/make_report.py` | таблица + график `results/pareto.png` |
 | `scripts/analyze.py` | разбор худших/лучших примеров |
 | `kotlin/transcribers/` | Kotlin-классы с таймингами слов |
-| `kotlin/transcribers/src/test/` | 61 JVM unit-тест (JUnit 4) |
+| `kotlin/transcribers/src/test/` | 71 JVM unit-тест (JUnit 4) |
 | `kotlin/transcribers/src/androidTest/` | instrumentation-тест `AudioDecoder` (WAV/MP3/MP4) |
 | `kotlin/transcribers/run_unit_tests.ps1` | запуск unit-тестов без Gradle |
 | `llm/*.gguf` | скачанные Qwen2.5 для пунктуации (в git не попадают) |

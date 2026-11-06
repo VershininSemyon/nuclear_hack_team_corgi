@@ -2,33 +2,41 @@ package com.nuclearhack.transcription
 
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 
 /**
  * Сопоставление исходных слов с ответом LLM.
  *
- * Главная проблема постобработки: LLM легко «поправит» слово, склеит два слова
- * или выбросит лишнее. Тогда тайминги слов разъедутся. Поэтому мы не доверяем
- * тексту LLM целиком, а ищем в нём те же слова, что вернул ASR, и переносим
- * только пунктуацию и регистр.
+ * Есть два режима:
  *
- * Алгоритм:
- * 1. Из обоих текстов берутся «ядра» слов — без пунктуации по краям,
- *    в нижнем регистре, `ё` приравнивается к `е`.
- * 2. Между ядрами считается LCS (наибольшая общая подпоследовательность).
- * 3. Если совпало меньше [minCoverage] исходных слов — ответ считается
- *    невалидным, вызывающий код использует fallback.
- * 4. Для совпавших слов берутся пунктуация и регистр из ответа LLM, а само
- *    слово — из ASR. Так текст не может «потерять» или заменить слова.
+ * - [align] — строгий: слова не меняются, переносятся только пунктуация и
+ *   регистр. Тайминги остаются точными.
+ * - [alignCorrected] — режим редактора: LLM может исправить очевидную ошибку
+ *   ASR, убрать слово-паразит или повтор. Слова сопоставляются выравниванием
+ *   с заменами/вставками/удалениями, а количество правок ограничивается.
+ *
+ * В обоих режимах слова сравниваются по «ядрам»: без пунктуации по краям,
+ * в нижнем регистре, `ё` приравнивается к `е`.
  */
 internal object TextAligner {
 
     data class Aligned(
-        /** Слова той же длины и в том же порядке, что исходные. */
+        /** Итоговые слова. В строгом режиме совпадают по длине с исходными. */
         val words: List<String>,
+        /** Для каждого слова — индекс исходного слова или `null` (вставка). */
+        val originalIndices: List<Int?>,
         /** Индексы слов, после которых нужно начать новый абзац. */
         val breakAfter: Set<Int>,
-        /** Сколько исходных слов нашлось в ответе LLM. */
+        /** Сколько исходных слов нашлось в ответе LLM (точные + похожие). */
         val matched: Int,
+        /** Сколько слов LLM исправила (замены). */
+        val corrected: Int = 0,
+        /** Сколько исходных слов удалено (слова-паразиты, повторы). */
+        val removed: Int = 0,
+        /** Сколько слов добавлено (нет исходного тайминга). */
+        val inserted: Int = 0,
+        /** `true`, если у части слов тайминги придётся интерполировать. */
+        val approximate: Boolean = false,
     )
 
     private data class Token(
@@ -39,6 +47,12 @@ internal object TextAligner {
 
     private const val PUNCTUATION = ".,!?;:…—–-«»\"'()[]{}/\\"
     private const val MARKDOWN = "*_`#~|"
+
+    // Стоимости выравнивания в режиме редактора. Замена дешевле удаления +
+    // вставки, поэтому похожее слово остаётся заменой, а не двумя правками.
+    private const val GAP_COST = 1.0
+    private const val SIMILAR_COST = 0.4
+    private const val SUBSTITUTE_COST = 1.2
 
     fun align(
         original: List<String>,
@@ -121,8 +135,179 @@ internal object TextAligner {
             if (originalIndex >= 0) lastMatchedOriginal = originalIndex
         }
 
-        return Aligned(words = words, breakAfter = breaks, matched = matched)
+        return Aligned(
+            words = words,
+            originalIndices = (0 until n).toList(),
+            breakAfter = breaks,
+            matched = matched,
+        )
     }
+
+    /**
+     * Режим редактора: разрешает замены, вставки и удаления.
+     *
+     * Используется, когда промпт просит исправить очевидные ошибки ASR и
+     * убрать слова-паразиты. Выравнивание — Needleman–Wunsch: точное слово
+     * бесплатно, похожее почти бесплатно, явная замена дороже, пропуск — ещё
+     * дороже. Затем проверяется, что правок не слишком много и большая часть
+     * исходных слов всё-таки сохранилась.
+     *
+     * [originalIndices] позволяет вернуть тайминги: у замены остаётся время
+     * исходного слова, у вставки времени нет (его интерполирует вызывающий
+     * код), удалённые слова просто исчезают.
+     */
+    fun alignCorrected(
+        original: List<String>,
+        formatted: String,
+        minCoverage: Float = 0.8f,
+        maxEditsRatio: Float = 0.4f,
+    ): Aligned? {
+        if (original.isEmpty()) return null
+
+        val originalCores = original.map(::coreOf)
+        val tokens = tokenize(formatted, originalCores.toSet())
+        if (tokens.isEmpty()) return null
+
+        val n = original.size
+        val m = tokens.size
+        val costs = Array(n) { i ->
+            DoubleArray(m) { j ->
+                val first = originalCores[i]
+                val second = tokens[j].core
+                when {
+                    first.isNotEmpty() && first == second -> 0.0
+                    similar(first, second) -> SIMILAR_COST
+                    else -> SUBSTITUTE_COST
+                }
+            }
+        }
+
+        val dp = Array(n + 1) { DoubleArray(m + 1) }
+        for (i in 1..n) dp[i][0] = i * GAP_COST
+        for (j in 1..m) dp[0][j] = j * GAP_COST
+        for (i in 1..n) {
+            for (j in 1..m) {
+                dp[i][j] = minOf(
+                    dp[i - 1][j - 1] + costs[i - 1][j - 1],
+                    dp[i - 1][j] + GAP_COST,
+                    dp[i][j - 1] + GAP_COST,
+                )
+            }
+        }
+
+        data class Operation(val originalIndex: Int, val tokenIndex: Int)
+
+        val operations = ArrayList<Operation>(maxOf(n, m))
+        var i = n
+        var j = m
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && near(dp[i][j], dp[i - 1][j - 1] + costs[i - 1][j - 1])) {
+                operations.add(Operation(i - 1, j - 1))
+                i--
+                j--
+            } else if (i > 0 && near(dp[i][j], dp[i - 1][j] + GAP_COST)) {
+                operations.add(Operation(i - 1, -1))
+                i--
+            } else {
+                operations.add(Operation(-1, j - 1))
+                j--
+            }
+        }
+        operations.reverse()
+
+        var exact = 0
+        var similarCount = 0
+        var corrected = 0
+        var removed = 0
+        var inserted = 0
+        val words = ArrayList<String>(maxOf(n, m))
+        val originalIndices = ArrayList<Int?>(maxOf(n, m))
+        val tokenOutputIndex = IntArray(m) { -1 }
+
+        for (operation in operations) {
+            if (operation.originalIndex >= 0 && operation.tokenIndex >= 0) {
+                val originalIndex = operation.originalIndex
+                val token = tokens[operation.tokenIndex]
+                val first = originalCores[originalIndex]
+                val second = token.core
+                val isExact = first.isNotEmpty() && first == second
+                val isSimilar = !isExact && similar(first, second)
+
+                val text = if (isExact) {
+                    applyFormatting(original[originalIndex], token.word)
+                } else {
+                    cleanFormattedWord(token.word)
+                }
+                if (text.isEmpty()) continue
+
+                when {
+                    isExact -> exact++
+                    isSimilar -> {
+                        similarCount++
+                        corrected++
+                    }
+                    else -> corrected++
+                }
+                tokenOutputIndex[operation.tokenIndex] = words.size
+                words.add(text)
+                originalIndices.add(originalIndex)
+            } else if (operation.originalIndex >= 0) {
+                removed++
+            } else if (operation.tokenIndex >= 0) {
+                val text = cleanFormattedWord(tokens[operation.tokenIndex].word)
+                if (text.isEmpty()) continue
+                tokenOutputIndex[operation.tokenIndex] = words.size
+                words.add(text)
+                originalIndices.add(null)
+                inserted++
+            }
+        }
+
+        if (words.isEmpty()) return null
+
+        val keptOriginal = n - removed
+        if (keptOriginal <= 0) return null
+        if ((exact + similarCount).toFloat() / keptOriginal < minCoverage) return null
+
+        val dissimilar = corrected - similarCount
+        val edits = dissimilar + removed + inserted
+        val maxEdits = maxOf(1, ceil(n * maxEditsRatio).toInt())
+        if (edits > maxEdits) return null
+
+        val breaks = sortedSetOf<Int>()
+        var lastParagraph = -1
+        var lastOutput = -1
+        for (tokenIndex in 0 until m) {
+            val token = tokens[tokenIndex]
+            if (
+                lastParagraph >= 0 &&
+                token.paragraph != lastParagraph &&
+                lastOutput in 0 until words.size - 1
+            ) {
+                breaks.add(lastOutput)
+            }
+            lastParagraph = token.paragraph
+            if (tokenOutputIndex[tokenIndex] >= 0) {
+                lastOutput = tokenOutputIndex[tokenIndex]
+            }
+        }
+
+        return Aligned(
+            words = words,
+            originalIndices = originalIndices,
+            breakAfter = breaks,
+            matched = exact + similarCount,
+            corrected = corrected,
+            removed = removed,
+            inserted = inserted,
+            approximate = inserted > 0,
+        )
+    }
+
+    private fun near(first: Double, second: Double): Boolean = abs(first - second) < 1e-9
+
+    private fun cleanFormattedWord(word: String): String =
+        word.trim().filterNot { it in MARKDOWN }.trim()
 
     /**
      * Разбить ответ на слова и запомнить номер абзаца.

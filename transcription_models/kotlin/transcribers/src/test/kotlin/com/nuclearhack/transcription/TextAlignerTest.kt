@@ -189,6 +189,56 @@ class TextAlignerTest {
     }
 
     @Test
+    fun correctedModeFixesSpellingAndMapsOriginalIndex() {
+        val aligned = TextAligner.alignCorrected(
+            original = listOf("масква", "красивая"),
+            formatted = "Москва красивая.",
+        )
+
+        assertEquals(listOf("Москва", "красивая."), aligned!!.words)
+        assertEquals(listOf<Int?>(0, 1), aligned.originalIndices)
+        assertEquals(1, aligned.corrected)
+        assertEquals(0, aligned.removed)
+        assertEquals(0, aligned.inserted)
+    }
+
+    @Test
+    fun correctedModeRemovesFillerWords() {
+        val aligned = TextAligner.alignCorrected(
+            original = listOf("ну", "привет", "ээ", "как", "дела"),
+            formatted = "Привет, как дела?",
+        )
+
+        assertEquals(listOf("Привет,", "как", "дела?"), aligned!!.words)
+        assertEquals(listOf<Int?>(1, 3, 4), aligned.originalIndices)
+        assertEquals(2, aligned.removed)
+        assertEquals(0, aligned.inserted)
+    }
+
+    @Test
+    fun correctedModeInsertsWordWithNullIndex() {
+        val aligned = TextAligner.alignCorrected(
+            original = listOf("привет", "мир"),
+            formatted = "Привет, дорогой мир!",
+        )
+
+        assertEquals(listOf("Привет,", "дорогой", "мир!"), aligned!!.words)
+        assertEquals(listOf<Int?>(0, null, 1), aligned.originalIndices)
+        assertEquals(1, aligned.inserted)
+        assertTrue(aligned.approximate)
+    }
+
+    @Test
+    fun correctedModeRejectsWholesaleRewrite() {
+        assertNull(
+            TextAligner.alignCorrected(
+                original = (1..10).map { "слово$it" },
+                formatted = "Совсем другой текст.",
+            ),
+        )
+    }
+
+    @Test
     fun punctuationInsideWordIsKeptFromOriginal() {
         val aligned = TextAligner.align(
             original = listOf("кое-кто", "пришёл"),

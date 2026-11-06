@@ -40,6 +40,10 @@ data class TranscriptionResult(
  * [chunks] идут в том же порядке и в том же количестве, что и [words]:
  * `chunks[i]` — это кусок исходного аудио для слова `words[i]`.
  * У каждого куска две метки — [AudioSlice.start] и [AudioSlice.end].
+ *
+ * После постобработки в режиме `EditingMode.CORRECT` слова могут быть
+ * удалены или добавлены. Тогда соответствие «слово → кусок» больше неверно,
+ * и [chunks] будет пустым. Для точных кусков используйте строгий режим.
  */
 data class TranscriptionWithAudio(
     val text: String,

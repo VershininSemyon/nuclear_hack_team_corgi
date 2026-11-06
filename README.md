@@ -12,7 +12,7 @@ Android/Kotlin и готовый код интеграции. Всё работ�
 | **Лидерборд:** качество, скорость, память, методика, что такое WER | [`transcription_leaderboard.md`](transcription_leaderboard.md) |
 | **Kotlin-классы:** `transcribe()` → текст + тайминги слов, `transcribeWithAudio()` → ещё и куски аудио; WAV/MP3/MP4 | [`transcription_models/kotlin/transcribers/`](transcription_models/kotlin/transcribers/) |
 | **Пунктуация локальной LLM:** Qwen2.5 0.5B/1.5B/3B GGUF, без облака, fallback по паузам | [`transcribers/README.md#пунктуация-и-форматирование-локальной-llm`](transcription_models/kotlin/transcribers/README.md#пунктуация-и-форматирование-локальной-llm) |
-| **Тесты:** 61 JVM unit-тест + instrumentation-тест декодера | [`transcribers/README.md#тесты`](transcription_models/kotlin/transcribers/README.md#тесты) |
+| **Тесты:** 71 JVM unit-тест + instrumentation-тест декодера | [`transcribers/README.md#тесты`](transcription_models/kotlin/transcribers/README.md#тесты) |
 | Подключение sherpa-onnx, jniLibs, VAD, грабли | [`transcription_models/kotlin/README.md`](transcription_models/kotlin/README.md) |
 | Сырые результаты: JSON, CSV, график, примеры | [`transcription_models/results/`](transcription_models/results/) |
 | Скрипты бенчмарка | [`transcription_models/scripts/`](transcription_models/scripts/) |
@@ -67,7 +67,7 @@ full.chunks.forEachIndexed { i, chunk ->
 ```kotlin
 val llm = LlamaCppLocalLlm.load(File(filesDir, "models/qwen2.5-1.5b-instruct-q4_k_m.gguf"))
 val restorer = PunctuationRestorer(llm)
-val clean = restorer.restore(full) // текст, слова и куски; тайминги не меняются
+val clean = restorer.restore(full) // текст, слова и куски; у замен — тайминг исходного слова
 println(clean.text)
 restorer.close()
 asr.close()

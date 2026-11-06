@@ -177,6 +177,128 @@ class PunctuationRestorerTest {
     }
 
     @Test
+    fun correctsObviousErrorAndKeepsOriginalTiming() {
+        val llm = FakeLlm { "Москва красивая." }
+        val restorer = PunctuationRestorer(llm)
+        val source = result(
+            WordTimestamp("масква", 1.0f, 1.5f),
+            WordTimestamp("красивая", 1.5f, 2.0f),
+        )
+
+        val output = restorer.restoreDetailed(source)
+
+        assertEquals("Москва красивая.", output.result.text)
+        assertEquals(listOf("Москва", "красивая."), output.result.words.map { it.word })
+        assertEquals(1.0f, output.result.words[0].start, 0.0001f)
+        assertEquals(1.5f, output.result.words[0].end, 0.0001f)
+        assertEquals(1, output.stats.correctedWords)
+        assertFalse(output.result.approximateTimestamps)
+    }
+
+    @Test
+    fun removesFillerWordsAndKeepsRemainingTimings() {
+        val llm = FakeLlm { "Привет, как дела?" }
+        val restorer = PunctuationRestorer(llm)
+        val source = result(
+            WordTimestamp("ну", 0.0f, 0.2f),
+            WordTimestamp("привет", 0.3f, 0.6f),
+            WordTimestamp("ээ", 0.7f, 0.9f),
+            WordTimestamp("как", 1.0f, 1.2f),
+            WordTimestamp("дела", 1.3f, 1.6f),
+        )
+
+        val output = restorer.restoreDetailed(source)
+
+        assertEquals(listOf("Привет,", "как", "дела?"), output.result.words.map { it.word })
+        assertEquals(0.3f, output.result.words[0].start, 0.0001f)
+        assertEquals(1.0f, output.result.words[1].start, 0.0001f)
+        assertEquals(1.3f, output.result.words[2].start, 0.0001f)
+        assertEquals(2, output.stats.removedWords)
+        assertEquals(0, output.stats.insertedWords)
+        assertFalse(output.result.approximateTimestamps)
+    }
+
+    @Test
+    fun insertedWordGetsInterpolatedTiming() {
+        val llm = FakeLlm { "Привет, дорогой мир!" }
+        val restorer = PunctuationRestorer(llm)
+        val source = result(
+            WordTimestamp("привет", 0.0f, 0.5f),
+            WordTimestamp("мир", 1.0f, 1.5f),
+        )
+
+        val output = restorer.restoreDetailed(source)
+
+        assertEquals(listOf("Привет,", "дорогой", "мир!"), output.result.words.map { it.word })
+        assertEquals(0.5f, output.result.words[1].start, 0.0001f)
+        assertEquals(1.0f, output.result.words[1].end, 0.0001f)
+        assertEquals(1, output.stats.insertedWords)
+        assertTrue(output.result.approximateTimestamps)
+    }
+
+    @Test
+    fun strictModeKeepsOriginalSpelling() {
+        val llm = FakeLlm { "Москва." }
+        val restorer = PunctuationRestorer(
+            llm,
+            PunctuationOptions(editing = EditingMode.STRICT),
+        )
+        val source = result(WordTimestamp("масква", 0.0f, 0.5f))
+
+        val output = restorer.restoreDetailed(source)
+
+        assertEquals("Масква.", output.result.text)
+        assertEquals(0, output.stats.correctedWords)
+    }
+
+    @Test
+    fun correctionModeFallsBackOnWholesaleRewrite() {
+        val llm = FakeLlm { "Совсем другой текст." }
+        val restorer = PunctuationRestorer(llm)
+        val source = result(
+            WordTimestamp("один", 0.0f, 0.1f),
+            WordTimestamp("два", 0.1f, 0.2f),
+            WordTimestamp("три", 0.2f, 0.3f),
+            WordTimestamp("четыре", 0.3f, 0.4f),
+            WordTimestamp("пять", 0.4f, 0.5f),
+        )
+
+        val output = restorer.restoreDetailed(source)
+
+        assertFalse(output.result.text.contains("Совсем"))
+        assertEquals(1, output.stats.fallbackChunks)
+    }
+
+    @Test
+    fun chunksAreDroppedWhenWordCountChanges() {
+        val llm = FakeLlm { "Привет, как дела?" }
+        val restorer = PunctuationRestorer(llm)
+        val words = listOf(
+            WordTimestamp("ну", 0.0f, 0.2f),
+            WordTimestamp("привет", 0.3f, 0.6f),
+            WordTimestamp("как", 1.0f, 1.2f),
+            WordTimestamp("дела", 1.3f, 1.6f),
+        )
+        val chunks = words.map { word ->
+            AudioSlice(
+                start = word.start,
+                end = word.end,
+                samples = FloatArray(10),
+            )
+        }
+        val source = TranscriptionWithAudio(
+            text = words.joinToString(" ") { it.word },
+            words = words,
+            chunks = chunks,
+        )
+
+        val output = restorer.restore(source)
+
+        assertEquals(3, output.words.size)
+        assertTrue(output.chunks.isEmpty())
+    }
+
+    @Test
     fun fallbackKeepsLowercaseAtChunkBoundary() {
         val restorer = PunctuationRestorer(
             llm = null,
