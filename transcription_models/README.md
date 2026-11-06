@@ -11,6 +11,7 @@
 |---|---|
 | **Главный документ:** лидерборд, методика, разбор метрик, примеры, рекомендации | [`../transcription_leaderboard.md`](../transcription_leaderboard.md) |
 | **Kotlin-классы** для Android (`transcribe()` → текст + `start`/`end` слов, `transcribeWithAudio()` → ещё и куски аудио) | [`kotlin/transcribers/`](kotlin/transcribers/) |
+| **Пунктуация локальной LLM** (Qwen2.5, GGUF, без облака) | [`kotlin/transcribers/README.md#пунктуация-и-форматирование-локальной-llm`](kotlin/transcribers/README.md#пунктуация-и-форматирование-локальной-llm) |
 | Инструкция по подключению sherpa-onnx и грабли | [`kotlin/README.md`](kotlin/README.md) |
 | Сырые результаты: JSON, CSV, график, примеры | [`results/`](results/) |
 | Скрипты бенчмарка | [`scripts/`](scripts/) |
@@ -55,6 +56,11 @@ asr.close()
 `Transcriber`. Подробности и требования — в
 [`kotlin/transcribers/README.md`](kotlin/transcribers/README.md).
 
+Пунктуация и абзацы — отдельный необязательный слой: `PunctuationRestorer` +
+`LlamaCppLocalLlm` (Qwen2.5 0.5B/1.5B/3B GGUF). Если LLM нет или она ошиблась,
+текст всё равно делится на предложения по паузам. См.
+[раздел про LLM](kotlin/transcribers/README.md#пунктуация-и-форматирование-локальной-llm).
+
 ## Что внутри
 
 | Файл | Назначение |
@@ -62,15 +68,17 @@ asr.close()
 | `scripts/download.py` | скачивание моделей и датасета FLEURS ru |
 | `scripts/download_parakeet.py` | Parakeet TDT 0.6B v3 (докачка) |
 | `scripts/download_whisper_attention.py` | Whisper-декодеры с attention (точные тайминги слов) |
+| `scripts/download_llm.py` | Qwen2.5 GGUF для локальной пунктуации (0.5B/1.5B/3B, SHA-256) |
 | `scripts/eval.py` | WER/CER + bootstrap CI на FLEURS ru test (200 фраз) |
 | `scripts/eval_golos.py` | WER/CER на Golos 10h crowd (200 фраз) |
 | `scripts/speed.py` | RTF и RAM на 10 сегментах по ~20 с (каждый в своём процессе) |
 | `scripts/make_report.py` | таблица + график `results/pareto.png` |
 | `scripts/analyze.py` | разбор худших/лучших примеров |
 | `kotlin/transcribers/` | Kotlin-классы с таймингами слов |
-| `kotlin/transcribers/src/test/` | 23 JVM unit-теста (JUnit 4) |
+| `kotlin/transcribers/src/test/` | 61 JVM unit-тест (JUnit 4) |
 | `kotlin/transcribers/src/androidTest/` | instrumentation-тест `AudioDecoder` (WAV/MP3/MP4) |
 | `kotlin/transcribers/run_unit_tests.ps1` | запуск unit-тестов без Gradle |
+| `llm/*.gguf` | скачанные Qwen2.5 для пунктуации (в git не попадают) |
 | `results/*.json` | сырые метрики (WER, CER, CI, тайминги, гипотезы) |
 
 ## Воспроизведение
@@ -80,6 +88,7 @@ pip install sherpa-onnx jiwer soundfile numpy num2words pyarrow psutil matplotli
 python scripts/download.py
 python scripts/download_parakeet.py
 python scripts/download_whisper_attention.py   # опционально: точные тайминги Whisper
+python scripts/download_llm.py --model qwen2.5-1.5b  # опционально: локальная пунктуация
 python scripts/eval.py            # N_UTTS=200 THREADS=4
 python scripts/eval_golos.py
 python scripts/speed.py

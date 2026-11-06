@@ -1,4 +1,6 @@
 models/
+llm/
+*.gguf
 data/
 results/transcripts.jsonl
 __pycache__/

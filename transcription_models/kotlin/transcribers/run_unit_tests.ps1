@@ -40,7 +40,11 @@ $mainFiles = @(
     (Join-Path $root "Models.kt"),
     (Join-Path $root "WordTimestamps.kt"),
     (Join-Path $root "AudioSlicer.kt"),
-    (Join-Path $root "AudioChunker.kt")
+    (Join-Path $root "AudioChunker.kt"),
+    (Join-Path $root "LocalLlm.kt"),
+    (Join-Path $root "TextAligner.kt"),
+    (Join-Path $root "RuleBasedFormatter.kt"),
+    (Join-Path $root "PunctuationRestorer.kt")
 )
 $testFiles = Get-ChildItem (Join-Path $root "src\test\kotlin") -Recurse -Filter *.kt |
     ForEach-Object { $_.FullName }
@@ -52,7 +56,10 @@ if ($LASTEXITCODE -ne 0) { throw "Test compilation failed" }
 $testClasses = @(
     "com.nuclearhack.transcription.WordTimestampsTest",
     "com.nuclearhack.transcription.AudioSlicerTest",
-    "com.nuclearhack.transcription.AudioChunkerTest"
+    "com.nuclearhack.transcription.AudioChunkerTest",
+    "com.nuclearhack.transcription.TextAlignerTest",
+    "com.nuclearhack.transcription.RuleBasedFormatterTest",
+    "com.nuclearhack.transcription.PunctuationRestorerTest"
 )
 
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue

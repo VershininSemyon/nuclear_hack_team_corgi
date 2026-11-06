@@ -8,6 +8,9 @@ Runtime занимает ~7 МБ на ABI, модели лежат отдель�
 > Там `GigaAmTranscriber`, `ZipformerRuTranscriber`, `ParakeetTranscriber`,
 > `WhisperTurboTranscriber`, `WhisperSmallTranscriber` и общий интерфейс
 > `Transcriber`. Ниже — низкоуровневая инструкция по рантайму и грабли.
+>
+> **Пунктуация и абзацы:** [`transcribers/README.md#пунктуация-и-форматирование-локальной-llm`](transcribers/README.md#пунктуация-и-форматирование-локальной-llm) —
+> локальная Qwen2.5 через llama.cpp, без облака.
 
 ## 1. Runtime
 
