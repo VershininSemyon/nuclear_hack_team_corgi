@@ -3,9 +3,11 @@ package com.example.baseapp.ui.library
 
 import android.Manifest
 import android.app.Application
+import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -23,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.baseapp.appContainer
 import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.data.db.AudioEntity
+import com.example.baseapp.ui.ModelStatusCard
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,6 +33,7 @@ import java.io.File
 fun AudioLibraryScreen(
     onOpenProfile: () -> Unit,
     onOpenAudioDetails: (Long) -> Unit,
+    onOpenTranscription: () -> Unit,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -37,8 +41,9 @@ fun AudioLibraryScreen(
 
     val viewModel: AudioLibraryViewModel = viewModel(
         factory = AudioLibraryViewModel.factory(
-            application,
-            container.audioRepository,
+            application = application,
+            repository = container.audioRepository,
+            modelManager = container.modelManager,
         ),
     )
 
@@ -60,6 +65,17 @@ fun AudioLibraryScreen(
         ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         uri?.let(viewModel::importAudio)
+    }
+
+    val modelArchiveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.installModelFromUri(
+                uri = it,
+                fileName = queryDisplayName(context, it),
+            )
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -91,6 +107,12 @@ fun AudioLibraryScreen(
                 },
                 actions = {
                     TextButton(
+                        onClick = onOpenTranscription,
+                    ) {
+                        Text("Расшифровка")
+                    }
+
+                    TextButton(
                         onClick = onOpenProfile,
                     ) {
                         Text("Профиль")
@@ -105,6 +127,26 @@ fun AudioLibraryScreen(
                 .padding(padding)
                 .padding(16.dp),
         ) {
+            // Состояние модели и управление её установкой.
+            // Карточка использует тот же GigaAmModelManager,
+            // что и существующий экран расшифровки.
+            ModelStatusCard(
+                status = state.modelStatus,
+                onInstall = viewModel::installModel,
+                onPickArchive = {
+                    modelArchiveLauncher.launch(
+                        arrayOf(
+                            "application/x-bzip2",
+                            "application/octet-stream",
+                            "*/*",
+                        ),
+                    )
+                },
+                onRetry = viewModel::refreshModelStatus,
+            )
+
+            Spacer(Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -173,7 +215,9 @@ fun AudioLibraryScreen(
 
             if (audios.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -184,7 +228,9 @@ fun AudioLibraryScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(
@@ -318,6 +364,26 @@ private fun AudioItem(
             ) {
                 Text(if (isPlaying) "Стоп" else "▶")
             }
+        }
+    }
+}
+
+private fun queryDisplayName(
+    context: Context,
+    uri: Uri,
+): String? {
+    return context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null,
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0) cursor.getString(index) else null
+        } else {
+            null
         }
     }
 }

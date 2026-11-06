@@ -16,7 +16,6 @@ import com.example.baseapp.ui.auth.WelcomeScreen
 import com.example.baseapp.ui.editor.TranscriptEditorScreen
 import com.example.baseapp.ui.library.AudioDetailScreen
 import com.example.baseapp.ui.library.AudioLibraryScreen
-import com.example.baseapp.ui.TranscriptionScreen
 import com.example.baseapp.ui.profile.AccountScreen
 
 object Routes {
@@ -99,6 +98,9 @@ private fun MainAppNavigation() {
                 },
                 onOpenAudioDetails = { id ->
                     navController.navigate(Routes.audioDetails(id))
+                },
+                onOpenTranscription = {
+                    navController.navigate(Routes.TRANSCRIPTION)
                 },
             )
         }

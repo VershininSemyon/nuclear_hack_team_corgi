@@ -129,13 +129,6 @@ fun ModelStatusCard(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Файлы модели не входят в APK и не хранятся в Git.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

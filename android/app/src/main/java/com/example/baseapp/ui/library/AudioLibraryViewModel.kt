@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui.library
 
 import android.app.Application
@@ -10,6 +11,8 @@ import com.example.baseapp.audio.AudioFileStore
 import com.example.baseapp.audio.WavRecorder
 import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.data.repository.AudioRepository
+import com.example.baseapp.transcriber.model.GigaAmModelManager
+import com.example.baseapp.transcriber.model.ModelStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,11 +29,13 @@ data class AudioLibraryUiState(
     val isStartingRecording: Boolean = false,
     val errorMessage: String? = null,
     val message: String? = null,
+    val modelStatus: ModelStatus,
 )
 
 class AudioLibraryViewModel(
     application: Application,
     private val repository: AudioRepository,
+    private val modelManager: GigaAmModelManager,
 ) : AndroidViewModel(application) {
 
     private val recorder = WavRecorder(application)
@@ -41,8 +46,23 @@ class AudioLibraryViewModel(
         initialValue = emptyList(),
     )
 
-    private val _state = MutableStateFlow(AudioLibraryUiState())
+    private val _state = MutableStateFlow(
+        AudioLibraryUiState(
+            modelStatus = modelManager.status.value,
+        ),
+    )
+
     val state = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            modelManager.status.collect { status ->
+                _state.update {
+                    it.copy(modelStatus = status)
+                }
+            }
+        }
+    }
 
     fun importAudio(uri: Uri) {
         if (_state.value.isImporting || _state.value.isRecording) return
@@ -158,6 +178,37 @@ class AudioLibraryViewModel(
         }
     }
 
+    /**
+     * Скачивает официальную модель GigaAM v3.
+     * Прогресс и ошибки приходят через modelManager.status.
+     */
+    fun installModel() {
+        viewModelScope.launch {
+            try {
+                modelManager.install()
+            } catch (_: Throwable) {
+                // Ошибка уже отражена в modelManager.status.
+            }
+        }
+    }
+
+    /**
+     * Устанавливает модель из выбранного пользователем архива .tar.bz2.
+     */
+    fun installModelFromUri(uri: Uri, fileName: String?) {
+        viewModelScope.launch {
+            try {
+                modelManager.installFromUri(uri, fileName)
+            } catch (_: Throwable) {
+                // Ошибка уже отражена в modelManager.status.
+            }
+        }
+    }
+
+    fun refreshModelStatus() {
+        modelManager.refresh()
+    }
+
     fun dismissMessage() {
         _state.update { it.copy(message = null) }
     }
@@ -175,15 +226,18 @@ class AudioLibraryViewModel(
         fun factory(
             application: Application,
             repository: AudioRepository,
+            modelManager: GigaAmModelManager,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
+
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(
                     modelClass: Class<T>,
                 ): T {
                     return AudioLibraryViewModel(
-                        application,
-                        repository,
+                        application = application,
+                        repository = repository,
+                        modelManager = modelManager,
                     ) as T
                 }
             }
