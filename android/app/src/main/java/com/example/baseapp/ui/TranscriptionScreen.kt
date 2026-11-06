@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui
 
 import android.Manifest
@@ -26,7 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,8 +65,6 @@ fun TranscriptionScreen(
         }
     }
     LaunchedEffect(state.errorMessage) {
-        // Ошибка одновременно показывается карточкой; дублируем коротким toast
-        // для случаев, когда карточка вне видимой области.
         state.errorMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
@@ -125,11 +123,6 @@ fun TranscriptionScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onOpenLibrary) {
-                        Text("Мои расшифровки")
                     }
                 },
             )
