@@ -49,7 +49,6 @@ fun AudioDetailScreen(
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
     var title by remember(audioId) { mutableStateOf("") }
-    var description by remember(audioId) { mutableStateOf("") }
     var initialized by remember(audioId) { mutableStateOf(false) }
 
     var isSaving by remember { mutableStateOf(false) }
@@ -61,7 +60,6 @@ fun AudioDetailScreen(
     LaunchedEffect(audio) {
         if (audio != null && !initialized) {
             title = audio!!.title
-            description = audio!!.description.orEmpty()
             initialized = true
         }
     }
@@ -116,18 +114,6 @@ fun AudioDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Название") },
                         singleLine = true,
-                        enabled = !isSaving && !isDeleting,
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Описание") },
-                        minLines = 2,
-                        maxLines = 5,
                         enabled = !isSaving && !isDeleting,
                     )
 
@@ -217,7 +203,6 @@ fun AudioDetailScreen(
                                         container.audioRepository.updateDetails(
                                             id = audioId,
                                             title = title,
-                                            description = description,
                                         )
                                     }
 

@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "4f2ce12b1cf65e8869de7816a3d12e4b",
+    "identityHash": "07dd5774e62bcb18cd7f40b649eb46c2",
     "entities": [
       {
         "tableName": "audios",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `serverId` TEXT, `syncStatus` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `filePath` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `filePath` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -15,28 +15,10 @@
             "notNull": true
           },
           {
-            "fieldPath": "serverId",
-            "columnName": "serverId",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "syncStatus",
-            "columnName": "syncStatus",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
             "fieldPath": "title",
             "columnName": "title",
             "affinity": "TEXT",
             "notNull": true
-          },
-          {
-            "fieldPath": "description",
-            "columnName": "description",
-            "affinity": "TEXT",
-            "notNull": false
           },
           {
             "fieldPath": "filePath",
@@ -61,12 +43,6 @@
             "columnName": "updatedAt",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "deletedAt",
-            "columnName": "deletedAt",
-            "affinity": "INTEGER",
-            "notNull": false
           }
         ],
         "primaryKey": {
@@ -80,23 +56,11 @@
       },
       {
         "tableName": "transcripts",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `serverId` TEXT, `syncStatus` INTEGER NOT NULL, `audioLocalId` INTEGER NOT NULL, `title` TEXT NOT NULL, `text` TEXT NOT NULL, `originalText` TEXT NOT NULL, `audioFileName` TEXT NOT NULL, `audioFormat` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `language` TEXT NOT NULL, `isEdited` INTEGER NOT NULL, `deletedAt` INTEGER, FOREIGN KEY(`audioLocalId`) REFERENCES `audios`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `audioLocalId` INTEGER NOT NULL, `title` TEXT NOT NULL, `text` TEXT NOT NULL, `originalText` TEXT NOT NULL, `audioFileName` TEXT NOT NULL, `audioFormat` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `language` TEXT NOT NULL, `isEdited` INTEGER NOT NULL, FOREIGN KEY(`audioLocalId`) REFERENCES `audios`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "serverId",
-            "columnName": "serverId",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "syncStatus",
-            "columnName": "syncStatus",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -159,12 +123,6 @@
             "columnName": "isEdited",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "deletedAt",
-            "columnName": "deletedAt",
-            "affinity": "INTEGER",
-            "notNull": false
           }
         ],
         "primaryKey": {
@@ -378,7 +336,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4f2ce12b1cf65e8869de7816a3d12e4b')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '07dd5774e62bcb18cd7f40b649eb46c2')"
     ]
   }
 }

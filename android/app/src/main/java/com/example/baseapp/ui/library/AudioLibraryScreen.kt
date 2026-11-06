@@ -31,7 +31,6 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioLibraryScreen(
-    onOpenProfile: () -> Unit,
     onOpenAudioDetails: (Long) -> Unit,
     onOpenTranscription: () -> Unit,
 ) {
@@ -110,12 +109,6 @@ fun AudioLibraryScreen(
                         onClick = onOpenTranscription,
                     ) {
                         Text("Расшифровка")
-                    }
-
-                    TextButton(
-                        onClick = onOpenProfile,
-                    ) {
-                        Text("Профиль")
                     }
                 },
             )

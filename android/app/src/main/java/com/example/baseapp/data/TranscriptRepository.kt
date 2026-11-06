@@ -3,9 +3,12 @@ package com.example.baseapp.data
 
 import androidx.room.withTransaction
 import com.example.baseapp.audio.AudioFormat
-import com.example.baseapp.data.db.*
-import com.example.baseapp.data.network.RetrofitClient
-import com.example.baseapp.data.repository.AuthRepository
+import com.example.baseapp.data.db.AppDatabase
+import com.example.baseapp.data.db.AudioEntity
+import com.example.baseapp.data.db.TranscriptEntity
+import com.example.baseapp.data.db.TranscriptSegmentEntity
+import com.example.baseapp.data.db.TranscriptWordEntity
+import com.example.baseapp.data.db.TranscriptWithRelations
 import com.example.baseapp.transcriber.TranscriptSegment
 import com.example.baseapp.transcriber.TranscriptionResult
 import com.example.baseapp.transcriber.WordTimestamp
@@ -25,13 +28,22 @@ data class AudioTranscriptSummary(
     val phrasesCount: Int,
 )
 
-class TranscriptRepository(private val database: AppDatabase, private val authRepository: AuthRepository) {
+class TranscriptRepository(
+    private val database: AppDatabase,
+) {
     private val transcriptDao = database.transcriptDao()
     private val audioDao = database.audioDao()
 
-    val transcripts: Flow<List<TranscriptSummary>> = transcriptDao.observeAll().map { entities -> entities.map { it.toSummary() } }
-    fun observe(id: Long): Flow<StoredTranscript?> = transcriptDao.observeDetail(id).map { it?.toStored() }
-    suspend fun get(id: Long): StoredTranscript? = transcriptDao.getDetail(id)?.toStored()
+    val transcripts: Flow<List<TranscriptSummary>> =
+        transcriptDao.observeAll().map { entities ->
+            entities.map { it.toSummary() }
+        }
+
+    fun observe(id: Long): Flow<StoredTranscript?> =
+        transcriptDao.observeDetail(id).map { it?.toStored() }
+
+    suspend fun get(id: Long): StoredTranscript? =
+        transcriptDao.getDetail(id)?.toStored()
 
     fun observeForAudio(
         audioId: Long,
@@ -59,13 +71,22 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
             }
         }
 
-    suspend fun saveNew(result: TranscriptionResult, title: String, audioFileName: String, audioFormat: AudioFormat, audioFile: File): Long {
+    suspend fun saveNew(
+        result: TranscriptionResult,
+        title: String,
+        audioFileName: String,
+        audioFormat: AudioFormat,
+        audioFile: File,
+    ): Long {
         val now = System.currentTimeMillis()
-        val cleanTitle = title.trim().ifBlank { defaultTitle(audioFileName) }
-        val status = if (authRepository.isLoggedIn()) SyncStatus.CREATED else SyncStatus.SYNCED
+        val cleanTitle = title.trim().ifBlank {
+            defaultTitle(audioFileName)
+        }
 
         return database.withTransaction {
-            val existingAudio = audioDao.getByFilePath(audioFile.absolutePath)
+            val existingAudio = audioDao.getByFilePath(
+                audioFile.absolutePath,
+            )
 
             val audioId = if (existingAudio != null) {
                 existingAudio.id
@@ -74,36 +95,110 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
                     AudioEntity(
                         title = cleanTitle,
                         filePath = audioFile.absolutePath,
-                        mimeType = "audio/${audioFormat.name.lowercase()}",
+                        mimeType = when (audioFormat) {
+                            AudioFormat.WAV -> "audio/wav"
+                            AudioFormat.MP3 -> "audio/mpeg"
+                            AudioFormat.MP4 -> "video/mp4"
+                        },
                         createdAt = now,
                         updatedAt = now,
-                        syncStatus = status,
-                    )
+                    ),
                 )
             }
-            val transcriptId = transcriptDao.insertTranscript(TranscriptEntity(audioLocalId = audioId, title = cleanTitle, text = result.text, originalText = result.text, audioFileName = audioFileName, audioFormat = audioFormat.name, createdAt = now, updatedAt = now, language = result.language ?: "ru", isEdited = false, syncStatus = status))
-            
-            if (result.words.isNotEmpty()) transcriptDao.insertWords(result.words.mapIndexed { i, w -> TranscriptWordEntity(transcriptId = transcriptId, position = i, word = w.word, startMs = w.startMs, endMs = w.endMs, speaker = w.speaker) })
-            if (result.segments.isNotEmpty()) transcriptDao.insertSegments(result.segments.mapIndexed { i, s -> TranscriptSegmentEntity(transcriptId = transcriptId, position = i, speaker = s.speaker, startMs = s.startMs, endMs = s.endMs, text = s.text) })
+
+            val transcriptId = transcriptDao.insertTranscript(
+                TranscriptEntity(
+                    audioLocalId = audioId,
+                    title = cleanTitle,
+                    text = result.text,
+                    originalText = result.text,
+                    audioFileName = audioFileName,
+                    audioFormat = audioFormat.name,
+                    createdAt = now,
+                    updatedAt = now,
+                    language = result.language ?: "ru",
+                    isEdited = false,
+                ),
+            )
+
+            if (result.words.isNotEmpty()) {
+                transcriptDao.insertWords(
+                    result.words.mapIndexed { index, word ->
+                        TranscriptWordEntity(
+                            transcriptId = transcriptId,
+                            position = index,
+                            word = word.word,
+                            startMs = word.startMs,
+                            endMs = word.endMs,
+                            speaker = word.speaker,
+                        )
+                    },
+                )
+            }
+
+            if (result.segments.isNotEmpty()) {
+                transcriptDao.insertSegments(
+                    result.segments.mapIndexed { index, segment ->
+                        TranscriptSegmentEntity(
+                            transcriptId = transcriptId,
+                            position = index,
+                            speaker = segment.speaker,
+                            startMs = segment.startMs,
+                            endMs = segment.endMs,
+                            text = segment.text,
+                        )
+                    },
+                )
+            }
+
             transcriptId
         }
     }
 
-    suspend fun saveEdits(id: Long, title: String, text: String): Boolean = database.withTransaction {
-        val current = transcriptDao.getById(id) ?: return@withTransaction false
+    suspend fun saveEdits(
+        id: Long,
+        title: String,
+        text: String,
+    ): Boolean = database.withTransaction {
+        val current = transcriptDao.getById(id)
+            ?: return@withTransaction false
+
+        val cleanTitle = title.trim().ifBlank {
+            current.title
+        }
         val now = System.currentTimeMillis()
-        val newStatus = if (current.syncStatus == SyncStatus.SYNCED) SyncStatus.UPDATED else current.syncStatus
-        transcriptDao.updateContent(id, title.trim().ifBlank { current.title }, text, text != current.originalText, now, newStatus)
-        audioDao.getById(current.audioLocalId)?.let { audioDao.update(it.copy(title = title.trim().ifBlank { it.title }, updatedAt = now, syncStatus = if (it.syncStatus == SyncStatus.SYNCED) SyncStatus.UPDATED else it.syncStatus)) }
+
+        transcriptDao.updateContent(
+            id = id,
+            title = cleanTitle,
+            text = text,
+            isEdited = text != current.originalText,
+            updatedAt = now,
+        )
+
+        audioDao.getById(current.audioLocalId)?.let { audio ->
+            audioDao.update(
+                audio.copy(
+                    title = cleanTitle,
+                    updatedAt = now,
+                ),
+            )
+        }
+
         true
     }
 
-    suspend fun delete(id: Long) = database.withTransaction {
-        transcriptDao.getById(id) ?: return@withTransaction
-        transcriptDao.softDelete(id)
+    suspend fun delete(id: Long) {
+        database.withTransaction {
+            transcriptDao.getById(id) ?: return@withTransaction
+            transcriptDao.hardDelete(id)
+        }
     }
 
-    private fun defaultTitle(f: String) = f.substringBeforeLast('.', f).ifBlank { "Расшифровка" }
+    private fun defaultTitle(fileName: String): String =
+        fileName.substringBeforeLast('.', fileName)
+            .ifBlank { "Расшифровка" }
+
     private fun TranscriptEntity.toSummary() = TranscriptSummary(
         id = id,
         title = title,
@@ -114,11 +209,60 @@ class TranscriptRepository(private val database: AppDatabase, private val authRe
         updatedAt = updatedAt,
         isEdited = isEdited,
     )
+
     private fun TranscriptWithRelations.toStored(): StoredTranscript {
-        val sw = words.sortedBy { it.position }.map { WordTimestamp(it.word, it.startMs, it.endMs, it.speaker) }
-        val ss = segments.sortedBy { it.position }.map { e -> TranscriptSegment(e.speaker, e.startMs, e.endMs, e.text, sw.filter { it.speaker == e.speaker && it.startMs >= e.startMs && it.endMs <= e.endMs }) }
-        return StoredTranscript(transcript.id, transcript.title, transcript.text, transcript.originalText, transcript.audioFileName, parseFormat(transcript.audioFormat), transcript.createdAt, transcript.updatedAt, transcript.language, sw, ss, transcript.isEdited)
+        val storedWords = words
+            .sortedBy { it.position }
+            .map {
+                WordTimestamp(
+                    word = it.word,
+                    startMs = it.startMs,
+                    endMs = it.endMs,
+                    speaker = it.speaker,
+                )
+            }
+
+        val storedSegments = segments
+            .sortedBy { it.position }
+            .map { entity ->
+                TranscriptSegment(
+                    speaker = entity.speaker,
+                    startMs = entity.startMs,
+                    endMs = entity.endMs,
+                    text = entity.text,
+                    words = storedWords.filter {
+                        it.speaker == entity.speaker &&
+                            it.startMs >= entity.startMs &&
+                            it.endMs <= entity.endMs
+                    },
+                )
+            }
+
+        return StoredTranscript(
+            id = transcript.id,
+            title = transcript.title,
+            text = transcript.text,
+            originalText = transcript.originalText,
+            audioFileName = transcript.audioFileName,
+            audioFormat = parseFormat(transcript.audioFormat),
+            createdAt = transcript.createdAt,
+            updatedAt = transcript.updatedAt,
+            language = transcript.language,
+            words = storedWords,
+            segments = storedSegments,
+            isEdited = transcript.isEdited,
+        )
     }
-    private fun parseFormat(v: String) = AudioFormat.entries.firstOrNull { it.name == v } ?: AudioFormat.WAV
-    private fun snippet(t: String) = t.replace(Regex("\\s+"), " ").trim().let { if (it.length <= 180) it else it.take(177) + "…" }
+
+    private fun parseFormat(value: String): AudioFormat =
+        AudioFormat.entries.firstOrNull { it.name == value }
+            ?: AudioFormat.WAV
+
+    private fun snippet(text: String): String =
+        text.replace(Regex("\\s+"), " ")
+            .trim()
+            .let {
+                if (it.length <= 180) it
+                else it.take(177) + "…"
+            }
 }

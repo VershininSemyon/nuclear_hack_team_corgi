@@ -15,7 +15,6 @@ abstract class TranscriptDao {
     @Query(
         """
         SELECT * FROM transcripts
-        WHERE deletedAt IS NULL
         ORDER BY updatedAt DESC, id DESC
         """
     )
@@ -25,7 +24,7 @@ abstract class TranscriptDao {
     @Query(
         """
         SELECT * FROM transcripts
-        WHERE id = :id AND deletedAt IS NULL
+        WHERE id = :id
         """
     )
     abstract fun observeDetail(id: Long): Flow<TranscriptWithRelations?>
@@ -35,7 +34,6 @@ abstract class TranscriptDao {
         """
         SELECT * FROM transcripts
         WHERE audioLocalId = :audioId
-          AND deletedAt IS NULL
         ORDER BY updatedAt DESC, id DESC
         """
     )
@@ -46,7 +44,7 @@ abstract class TranscriptDao {
     @Query(
         """
         SELECT * FROM transcripts
-        WHERE id = :id AND deletedAt IS NULL
+        WHERE id = :id
         LIMIT 1
         """
     )
@@ -55,9 +53,6 @@ abstract class TranscriptDao {
     @Query("SELECT * FROM transcripts WHERE id = :id LIMIT 1")
     abstract suspend fun getByIdIncludingDeleted(id: Long): TranscriptEntity?
 
-    @Query("SELECT * FROM transcripts WHERE serverId = :serverId LIMIT 1")
-    abstract suspend fun getByServerId(serverId: String): TranscriptEntity?
-
     @Query("SELECT * FROM transcripts WHERE audioLocalId = :audioId")
     abstract suspend fun getByAudioId(audioId: Long): List<TranscriptEntity>
 
@@ -65,7 +60,7 @@ abstract class TranscriptDao {
     @Query(
         """
         SELECT * FROM transcripts
-        WHERE id = :id AND deletedAt IS NULL
+        WHERE id = :id
         """
     )
     abstract suspend fun getDetail(id: Long): TranscriptWithRelations?
@@ -85,9 +80,8 @@ abstract class TranscriptDao {
         SET title = :title,
             text = :text,
             isEdited = :isEdited,
-            updatedAt = :updatedAt,
-            syncStatus = :syncStatus
-        WHERE id = :id AND deletedAt IS NULL
+            updatedAt = :updatedAt
+        WHERE id = :id
         """
     )
     abstract suspend fun updateContent(
@@ -96,61 +90,7 @@ abstract class TranscriptDao {
         text: String,
         isEdited: Boolean,
         updatedAt: Long,
-        syncStatus: Int = SyncStatus.UPDATED,
     )
-
-    @Query(
-        """
-        UPDATE transcripts
-        SET serverId = :serverId,
-            syncStatus = :status
-        WHERE id = :id
-        """
-    )
-    abstract suspend fun markSynced(
-        id: Long,
-        serverId: String,
-        status: Int = SyncStatus.SYNCED,
-    )
-
-    @Query("UPDATE transcripts SET syncStatus = :status WHERE id = :id")
-    abstract suspend fun markSyncStatus(id: Long, status: Int)
-
-    @Query(
-        """
-        UPDATE transcripts
-        SET deletedAt = :deletedAt,
-            syncStatus = :status,
-            updatedAt = :deletedAt
-        WHERE id = :id AND deletedAt IS NULL
-        """
-    )
-    abstract suspend fun softDelete(
-        id: Long,
-        deletedAt: Long = System.currentTimeMillis(),
-        status: Int = SyncStatus.DELETED,
-    )
-
-    @Query(
-        """
-        UPDATE transcripts
-        SET deletedAt = :deletedAt,
-            syncStatus = :status,
-            updatedAt = :deletedAt
-        WHERE audioLocalId = :audioId
-          AND deletedAt IS NULL
-        """
-    )
-    abstract suspend fun softDeleteByAudioId(
-        audioId: Long,
-        deletedAt: Long = System.currentTimeMillis(),
-        status: Int = SyncStatus.DELETED,
-    )
-
-    @Query("SELECT * FROM transcripts WHERE syncStatus != :synced")
-    abstract suspend fun getUnsynced(
-        synced: Int = SyncStatus.SYNCED,
-    ): List<TranscriptEntity>
 
     @Update
     abstract suspend fun update(entity: TranscriptEntity)
@@ -171,11 +111,25 @@ abstract class TranscriptDao {
         deleteSegments(transcriptId)
 
         if (words.isNotEmpty()) {
-            insertWords(words.map { it.copy(transcriptId = transcriptId, id = 0L) })
+            insertWords(
+                words.map {
+                    it.copy(
+                        transcriptId = transcriptId,
+                        id = 0L,
+                    )
+                },
+            )
         }
 
         if (segments.isNotEmpty()) {
-            insertSegments(segments.map { it.copy(transcriptId = transcriptId, id = 0L) })
+            insertSegments(
+                segments.map {
+                    it.copy(
+                        transcriptId = transcriptId,
+                        id = 0L,
+                    )
+                },
+            )
         }
     }
 
