@@ -62,6 +62,10 @@
 | **Сквозной класс:** файл → ASR → спикеры → JSON | [`DiarizedTranscriber.kt`](diarization/kotlin/diarizers/DiarizedTranscriber.kt) |
 | Подключение sherpa-onnx и jniLibs | [`transcription/kotlin/README.md`](transcription/kotlin/README.md) |
 | Как воспроизвести замеры | [`transcription/README.md`](transcription/README.md), [`diarization/README.md`](diarization/README.md) |
+| **Протокол оценки:** датасеты, формулы, воспроизведение | [`docs/PROTOCOL.md`](docs/PROTOCOL.md) |
+| **Ограничения решения** | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) |
+| **Результаты тестов** | [`docs/TEST_RESULTS.md`](docs/TEST_RESULTS.md) |
+| Презентация защиты | [`docs/hackathon_defense.pptx`](docs/hackathon_defense.pptx) |
 
 ## Выбор моделей
 

@@ -22,8 +22,9 @@
 | AndroidX Lifecycle и ViewModel | Управление состоянием экранов |
 | Kotlin Coroutines и StateFlow | Асинхронные операции и передача состояния в интерфейс |
 | Room | Локальная база данных SQLite |
-| DataStore Preferences | Хранение настроек |
+| SharedPreferences | Черновики редактора |
 | sherpa-onnx | Запуск моделей распознавания и диаризации |
+| llama-android (llama.cpp) | Локальная LLM Qwen2.5 |
 | ONNX | Формат моделей машинного обучения |
 | Apache Commons Compress | Распаковка архивов моделей |
 | JUnit и AndroidX Test | Автоматические тесты |
@@ -98,18 +99,19 @@
 описаны в `GigaAmModelFiles`: `encoder.int8.onnx`, `decoder.onnx`,
 `joiner.onnx`, `tokens.txt`. Архив скачивается с GitHub Releases sherpa-onnx и
 проверяется по SHA-256; после распаковки размеры файлов сверяются с эталоном.
-`GigaAmTranscriber` подаёт в `SherpaEngine` моно-аудио 16 кГц, режет его на
+`GigaAmTranscriber` подаёт моно-аудио 16 кГц в
+`com.nuclearhack.transcription.GigaAmTranscriber`, который режет его на
 сегменты ≤ 25 с и собирает слова с таймингами.
 
 ### Диаризация
 
 Используются две ONNX-модели из `DiarizationModelFiles`:
 `pyannote/segmentation-3.0` для покадровой сегментации речи и
-`3D-Speaker ERes2Net base` для эмбеддингов. `SherpaSpeakerDiarizer` запускает
-`OfflineSpeakerDiarization`, получает интервалы «кто когда говорил» и
-сопоставляет их со словами ASR по перекрытию. Если число спикеров не задано,
-используется пороговая кластеризация sherpa-onnx; в редакторе спикеров можно
-переименовать и перекрасить.
+`3D-Speaker ERes2Net base` для эмбеддингов. Приложение использует
+`com.nuclearhack.diarization.SherpaDiarizer`: несколько прогонов
+`OfflineSpeakerDiarization` с порогами 0.4–0.8, выбор устойчивого K по плато,
+затем `WordSpeakerAssigner` сопоставляет интервалы со словами ASR. В редакторе
+спикеров можно переименовать и перекрасить.
 
 ## 6. Основные паттерны и принципы
 
@@ -137,9 +139,11 @@
 | `data/` | Репозитории, модели данных, экспорт и черновики |
 | `data/db/` | Room: база данных, сущности и DAO |
 | `transcriber/` | Интерфейс распознавания и сборка результата |
-| `transcriber/sherpa/` | Работа движка распознавания, разбиение аудио и временные отметки слов |
-| `transcriber/diarization/` | Определение говорящих и назначение говорящего словам |
+| `transcriber/sherpa/` | Вспомогательные классы нарезки и таймингов |
+| `transcriber/diarization/` | Старая обёртка диаризации (оставлена для совместимости) |
 | `transcriber/model/` | Проверка, загрузка и установка файлов моделей |
+| `com/nuclearhack/transcription/` | Research ASR-классы: GigaAM, WordTimestamps, LLM |
+| `com/nuclearhack/diarization/` | Research диаризация: SherpaDiarizer, auto-K, WordSpeakerAssigner |
 | `ui/` | Навигация и общие компоненты интерфейса |
 | `ui/library/` | Экраны библиотеки и распознавания, связанные ViewModel |
 | `ui/editor/` | Экран и логика редактирования расшифровки |
