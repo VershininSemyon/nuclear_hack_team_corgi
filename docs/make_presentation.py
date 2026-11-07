@@ -38,6 +38,21 @@ FONT_BOLD = "Segoe UI Semibold"
 # Единый коэффициент: весь текст в колоде чуть крупнее.
 SCALE = 1.16
 
+# Три размера на всю презентацию: заголовок, подзаголовок, текст.
+FS_TITLE = 28.0
+FS_HEAD = 14.0
+FS_BODY = 10.5
+
+
+def fs(size: float) -> float:
+    """Сводит любой запрошенный кегль к одному из трёх размеров."""
+    size = float(size)
+    if size >= 18.5:
+        return FS_TITLE
+    if size >= 12.4:
+        return FS_HEAD
+    return FS_BODY
+
 
 def set_bg(slide, color: RGBColor) -> None:
     fill = slide.background.fill
@@ -60,7 +75,7 @@ def text(
     valign=MSO_ANCHOR.TOP,
     margin: float = 0.04,
 ):
-    size = float(size) * SCALE
+    size = fs(float(size)) * SCALE
     box = slide.shapes.add_textbox(
         Inches(left), Inches(top), Inches(width), Inches(height)
     )
@@ -99,7 +114,7 @@ def bullets(
     gap: float = 6,
     bullet_char: str = "•",
 ):
-    size = float(size) * SCALE
+    size = fs(float(size)) * SCALE
     box = slide.shapes.add_textbox(
         Inches(left), Inches(top), Inches(width), Inches(height)
     )
@@ -239,7 +254,7 @@ def footer(slide, n: int):
 
 
 def add_table(slide, data, left, top, width, height, font_size=13.0, col_widths=None):
-    font_size = float(font_size) * SCALE
+    font_size = fs(float(font_size)) * SCALE
     rows, cols = len(data), len(data[0])
     table_shape = slide.shapes.add_table(rows, cols, Inches(left), Inches(top), Inches(width), Inches(height))
     table = table_shape.table
@@ -304,7 +319,7 @@ text(
     2.78,
     7.5,
     1.05,
-    20,
+    14,
     False,
     RGBColor(0xC9, 0xD7, 0xE8),
 )
@@ -343,10 +358,10 @@ for i, (t, s) in enumerate(
 ):
     card_text(slide, t, s, 0.65 + i * 4.12, 2.05, 3.82, 1.55, fill=LIGHT, title_size=17, subtitle_size=12)
 card(slide, 0.65, 4.15, 12.0, 1.08, fill=LIGHT_2, line=CYAN, radius=0.12)
-text(slide, "Локальный пайплайн", 0.95, 4.32, 2.25, 0.35, 16, True, NAVY, font=FONT_BOLD)
+text(slide, "Локальный пайплайн", 0.95, 4.32, 2.55, 0.35, 16, True, NAVY, font=FONT_BOLD)
 steps = ["аудио", "текст", "спикеры", "JSON"]
 for i, step in enumerate(steps):
-    left = 3.35 + i * 2.15
+    left = 3.62 + i * 2.15
     card(slide, left, 4.42, 1.55, 0.48, fill=NAVY, line=NAVY, radius=0.18)
     text(slide, step, left, 4.50, 1.55, 0.28, 11, True, WHITE, PP_ALIGN.CENTER)
     if i < len(steps) - 1:
@@ -376,7 +391,7 @@ for i, (t, s) in enumerate(items):
     top = 2.05 + row * 1.10
     card(slide, left, top, 5.9, 0.88, fill=LIGHT, line=BORDER, radius=0.10)
     circle = card(slide, left + 0.15, top + 0.17, 0.52, 0.52, fill=GREEN, line=None, radius=0.50)
-    text(slide, "✓", left + 0.15, top + 0.18, 0.52, 0.45, 18, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
+    text(slide, "✓", left + 0.15, top + 0.19, 0.52, 0.45, 28, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
     text(slide, t, left + 0.82, top + 0.10, 2.0, 0.3, 15, True, NAVY, font=FONT_BOLD)
     text(slide, s, left + 0.82, top + 0.43, 4.7, 0.3, 10.5, False, GRAY)
 text(slide, "Демо: файл из памяти → расшифровка → редактор спикеров → JSON", 0.65, 6.55, 12.0, 0.3, 13, True, BLUE)
@@ -400,7 +415,7 @@ arrow(slide, 4.38, 2.20, 0.30, 0.25)
 arrow(slide, 4.38, 3.32, 0.30, 0.25)
 # ASR and diarization
 card(slide, 4.78, 1.72, 2.25, 0.82, fill=RGBColor(0xE8, 0xF4, 0xEC), line=GREEN, radius=0.12)
-text(slide, "GigaAM v3", 4.78, 1.84, 2.25, 0.3, 12, True, GREEN, PP_ALIGN.CENTER, FONT_BOLD)
+text(slide, "GigaAM v3", 4.78, 1.84, 2.25, 0.3, 14, True, GREEN, PP_ALIGN.CENTER, FONT_BOLD)
 text(slide, "ASR + тайминги слов", 4.78, 2.16, 2.25, 0.2, 8.5, False, GRAY, PP_ALIGN.CENTER)
 card(slide, 4.78, 3.05, 2.25, 0.82, fill=RGBColor(0xFB, 0xEE, 0xE6), line=RGBColor(0xE6, 0x7E, 0x22), radius=0.12)
 text(slide, "pyannote + CAM++", 4.78, 3.17, 2.25, 0.3, 11, True, RGBColor(0xB4, 0x5F, 0x06), PP_ALIGN.CENTER, FONT_BOLD)
@@ -470,7 +485,7 @@ w = max_w
 h = w * asr_img.height / asr_img.width
 slide.shapes.add_picture(
     str(ROOT / "transcription" / "results" / "pareto.png"),
-    Inches(5.35),
+    Inches(5.35 + (12.78 - 5.35 - w) / 2),
     Inches(2.05 + max(0, (4.3 - h) / 2)),
     width=Inches(w),
     height=Inches(h),
@@ -507,7 +522,7 @@ w = 7.2
 h = w * d_img.height / d_img.width
 slide.shapes.add_picture(
     str(ROOT / "diarization" / "results" / "pareto_diarization.png"),
-    Inches(5.55),
+    Inches(5.35 + (12.78 - 5.35 - w) / 2),
     Inches(2.05 + max(0, (4.3 - h) / 2)),
     width=Inches(w),
     height=Inches(h),
@@ -524,7 +539,7 @@ steps = [
     ("2", "Чистые окна", "2 с / 1 с\n3 с / 1.5 с"),
     ("3", "Эмбеддинги", "L2, 12\nмоделей"),
     ("4", "AHC", "complete\nlinkage"),
-    ("5", "Auto-K", "gap / sweep\n+ decode"),
+    ("5", "Auto-K", "gap / перебор\n+ decode"),
 ]
 for i, (num, head, sub) in enumerate(steps):
     left = 0.65 + i * 2.48
@@ -549,7 +564,7 @@ bullets(
     3,
 )
 card(slide, 6.80, 4.05, 5.85, 1.95, fill=RGBColor(0xFF, 0xF4, 0xE5), line=RGBColor(0xE6, 0x7E, 0x22), radius=0.10)
-text(slide, "Sweep порогов (Android)", 7.03, 4.22, 4.0, 0.3, 13, True, RGBColor(0xB4, 0x5F, 0x06), font=FONT_BOLD)
+text(slide, "Перебор порогов (Android)", 7.03, 4.22, 4.4, 0.3, 13, True, RGBColor(0xB4, 0x5F, 0x06), font=FONT_BOLD)
 bullets(
     slide,
     ["5 прогонов, пороги 0.4–0.8", "выбор K по плато", "быстро, но AMI — риск"],
@@ -568,7 +583,7 @@ add_notes(slide, "40 секунд: сегментация, чистые окна
 # 8. Full pipeline Dialogs -------------------------------------------------
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_bg(slide, WHITE)
-title_slide(slide, "Полный пайплайн на русском диалоговом корпусе", "Собственный тест")
+title_slide(slide, "Полный пайплайн на русских диалогах", "Собственный тест")
 text(slide, "Dialogs · Interspeech 2026 · 5 диалогов · 2 спикера · 8.3 мин", 0.65, 1.78, 7.5, 0.3, 11, False, GRAY)
 metrics = [("18.97%", "DER"), ("88.11%", "word accuracy"), ("5/5", "K exact")]
 for i, (value, label) in enumerate(metrics):
@@ -577,7 +592,7 @@ for i, (value, label) in enumerate(metrics):
     text(slide, value, left, 2.42, 1.75, 0.55, 21, True, BLUE, PP_ALIGN.CENTER, FONT_BOLD)
     text(slide, label, left, 3.10, 1.75, 0.3, 9.5, False, GRAY, PP_ALIGN.CENTER)
 card(slide, 0.65, 4.10, 5.40, 1.70, fill=LIGHT, line=BORDER, radius=0.10)
-text(slide, "Как считали", 0.88, 4.25, 3.0, 0.3, 12, True, NAVY, font=FONT_BOLD)
+text(slide, "Как считали", 0.88, 4.25, 3.0, 0.3, 14, True, NAVY, font=FONT_BOLD)
 bullets(
     slide,
     ["GigaAM → CAM++ → WordSpeakerAssigner", "Реплики: пауза > 1.2 с, длина > 15 с", "JSON: speaker_id — целое число"],
@@ -626,7 +641,7 @@ for i, (head, sub) in enumerate(features):
     left = 0.65 + col * 3.30
     top = 1.95 + row * 1.05
     card(slide, left, top, 3.05, 0.88, fill=LIGHT, line=BORDER, radius=0.10)
-    text(slide, head, left + 0.15, top + 0.12, 2.7, 0.28, 12, True, NAVY, font=FONT_BOLD)
+    text(slide, head, left + 0.15, top + 0.12, 2.7, 0.28, 14, True, NAVY, font=FONT_BOLD)
     text(slide, sub, left + 0.15, top + 0.45, 2.7, 0.25, 9.5, False, GRAY)
 # phone mockup
 card(slide, 8.05, 1.55, 4.45, 4.95, fill=NAVY, line=CYAN, radius=0.10)
@@ -638,7 +653,7 @@ for i, (name, dur, color) in enumerate([("Встреча 12 мая", "12:34", CY
     text(slide, dur, 10.95, 2.55 + i * 0.78, 0.9, 0.22, 9, False, GRAY, PP_ALIGN.RIGHT)
     text(slide, "●  speaker_1 / speaker_2", 8.65, 2.78 + i * 0.78, 3.3, 0.2, 8, True, color)
 card(slide, 8.50, 4.15, 3.55, 1.75, fill=LIGHT_2, line=CYAN, radius=0.08)
-text(slide, "Расшифровка", 8.68, 4.30, 3.2, 0.28, 11.5, True, NAVY, font=FONT_BOLD)
+text(slide, "Расшифровка", 8.68, 4.30, 3.2, 0.28, 14, True, NAVY, font=FONT_BOLD)
 text(slide, "Добрый день!\nПривет, как дела?\nВсё готово к встрече.", 8.68, 4.65, 3.2, 0.8, 9.5, False, GRAY)
 text(slide, "APK ~90 МБ · minSdk 24 · arm64-v8a + x86_64", 0.65, 6.45, 7.2, 0.3, 10.5, False, GRAY)
 footer(slide, 9)
@@ -718,7 +733,7 @@ for i, (head, body) in enumerate(limits):
     card(slide, left, top, 5.9, 1.20, fill=LIGHT, line=BORDER, radius=0.10)
     badge = card(slide, left + 0.14, top + 0.18, 0.46, 0.46, fill=AMBER, line=None, radius=0.50)
     text(slide, "!", left + 0.14, top + 0.20, 0.46, 0.3, 14, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
-    text(slide, head, left + 0.75, top + 0.13, 4.9, 0.28, 12, True, NAVY, font=FONT_BOLD)
+    text(slide, head, left + 0.75, top + 0.13, 4.9, 0.28, 14, True, NAVY, font=FONT_BOLD)
     text(slide, body, left + 0.75, top + 0.45, 4.9, 0.65, 9.5, False, GRAY)
 text(slide, "Что улучшим: overlap-aware декодер, реальные русские встречи, калибровка auto-K.", 0.65, 6.55, 12.0, 0.3, 11, True, BLUE)
 footer(slide, 11)
