@@ -1,19 +1,16 @@
+
 package com.example.baseapp.data
 
 import android.content.Context
+import org.json.JSONArray
 
 data class TranscriptDraft(
     val title: String,
     val text: String,
     val savedAt: Long,
+    val segmentTexts: List<String> = emptyList(),
 )
 
-/**
- * Черновик редактора на случай случайного выхода/пересоздания процесса.
- *
- * Черновик не заменяет сохранённую расшифровку и не меняет `originalText`.
- * При явном сохранении или отмене он удаляется.
- */
 class TranscriptDraftStore(context: Context) {
 
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -25,19 +22,43 @@ class TranscriptDraftStore(context: Context) {
         val titleKey = key(id, "title")
         val textKey = key(id, "text")
         val savedAtKey = key(id, "saved_at")
+        val segmentsKey = key(id, "segments")
+
         if (!preferences.contains(textKey)) return null
+
+        val segmentTexts = runCatching {
+            val array = JSONArray(
+                preferences.getString(segmentsKey, "[]"),
+            )
+            List(array.length()) { index ->
+                array.getString(index)
+            }
+        }.getOrDefault(emptyList())
 
         return TranscriptDraft(
             title = preferences.getString(titleKey, "").orEmpty(),
             text = preferences.getString(textKey, "").orEmpty(),
             savedAt = preferences.getLong(savedAtKey, 0L),
+            segmentTexts = segmentTexts,
         )
     }
 
-    fun save(id: Long, title: String, text: String) {
+    fun save(
+        id: Long,
+        title: String,
+        text: String,
+        segmentTexts: List<String> = emptyList(),
+    ) {
+        val segments = JSONArray().apply {
+            segmentTexts.forEach {
+                put(it)
+            }
+        }
+
         preferences.edit()
             .putString(key(id, "title"), title)
             .putString(key(id, "text"), text)
+            .putString(key(id, "segments"), segments.toString())
             .putLong(key(id, "saved_at"), System.currentTimeMillis())
             .apply()
     }
@@ -47,8 +68,10 @@ class TranscriptDraftStore(context: Context) {
             .remove(key(id, "title"))
             .remove(key(id, "text"))
             .remove(key(id, "saved_at"))
+            .remove(key(id, "segments"))
             .apply()
     }
 
-    private fun key(id: Long, suffix: String): String = "transcript_${id}_$suffix"
+    private fun key(id: Long, suffix: String): String =
+        "transcript_${id}_$suffix"
 }

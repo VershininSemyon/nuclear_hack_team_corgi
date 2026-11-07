@@ -5,7 +5,9 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,11 +17,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,7 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -53,18 +57,19 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.baseapp.appContainer
+import com.example.baseapp.data.SpeakerColors
 import com.example.baseapp.data.TranscriptJsonExporter
 import com.example.baseapp.ui.TimestampDisclaimer
 import com.example.baseapp.ui.formatDateTime
-import com.example.baseapp.ui.formatTimestamp
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TranscriptEditorScreen(
     onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val container = context.appContainer
     val coroutineScope = rememberCoroutineScope()
 
@@ -77,12 +82,12 @@ fun TranscriptEditorScreen(
 
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
     var showExitDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOriginalText by remember { mutableStateOf(false) }
-    var showTimestamps by remember { mutableStateOf(false) }
+    var showSpeakers by remember { mutableStateOf(false) }
     var exitAfterSave by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -108,9 +113,10 @@ fun TranscriptEditorScreen(
                     snackbarHostState.showSnackbar("JSON-файл сохранён")
                 } else {
                     snackbarHostState.showSnackbar(
-                        "Не удалось экспортировать JSON: " +
-                            (result.exceptionOrNull()?.localizedMessage
-                                ?: "неизвестная ошибка"),
+                        "Ошибка экспорта: ${
+                            result.exceptionOrNull()?.localizedMessage
+                                ?: "неизвестная ошибка"
+                        }",
                     )
                 }
             }
@@ -159,12 +165,38 @@ fun TranscriptEditorScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
+        },
         topBar = {
-            TopAppBar(
-                title = { Text("Редактор расшифровки") },
-                navigationIcon = {
-                    TextButton(
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // Заголовок строго по центру.
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Редактирование расшифровки",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // Все управляющие кнопки в отдельном ряду.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
                         onClick = {
                             if (state.hasUnsavedChanges) {
                                 showExitDialog = true
@@ -172,48 +204,52 @@ fun TranscriptEditorScreen(
                                 onBack()
                             }
                         },
+                        modifier = Modifier.weight(1f),
                     ) {
                         Text("Назад")
                     }
-                },
-                actions = {
+
                     if (!state.isLoading && !state.notFound) {
-                        TextButton(
+                        OutlinedButton(
                             onClick = {
-                                val fileName = state.title
-                                    .replace(
-                                        Regex("[^a-zA-Zа-яА-Я0-9_-]"),
-                                        "_",
-                                    )
-                                    .ifBlank { "transcript" }
+                                val fileName = state.title.replace(
+                                    Regex("[^a-zA-Zа-яА-Я0-9_-]"),
+                                    "_",
+                                ).ifBlank {
+                                    "transcript"
+                                }
 
                                 exportLauncher.launch("$fileName.json")
                             },
+                            modifier = Modifier.weight(1f),
                         ) {
                             Text("JSON")
                         }
 
-                        TextButton(
-                            onClick = { showDeleteDialog = true },
+                        OutlinedButton(
+                            onClick = {
+                                showDeleteDialog = true
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
                         ) {
-                            Text(
-                                "Удалить",
-                                color = MaterialTheme.colorScheme.error,
-                            )
+                            Text("Удалить")
                         }
                     }
-                },
-            )
+                }
+            }
         },
     ) { innerPadding ->
+
         when {
             state.isLoading -> {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
                 }
@@ -228,12 +264,7 @@ fun TranscriptEditorScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = "Расшифровка не найдена",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Расшифровка не найдена")
 
                     TextButton(onClick = onBack) {
                         Text("Вернуться")
@@ -258,82 +289,127 @@ fun TranscriptEditorScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
                                     text = "Восстановлены несохранённые изменения",
-                                    style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
 
-                                TextButton(onClick = viewModel::cancelChanges) {
+                                TextButton(
+                                    onClick = viewModel::cancelChanges,
+                                ) {
                                     Text("Сбросить")
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
                     }
 
                     OutlinedTextField(
                         value = state.title,
                         onValueChange = viewModel::onTitleChanged,
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Название") },
+                        label = {
+                            Text("Название")
+                        },
                         singleLine = true,
                         enabled = !state.isSaving,
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(Modifier.height(6.dp))
 
                     Text(
-                        text = "${state.audioFileName} · ${state.audioFormat.displayName} · " +
+                        text = "${state.audioFileName} · " +
+                            "${state.audioFormat.displayName} · " +
                             "создано ${formatDateTime(state.createdAt)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
 
+                    // Кнопки исходного текста и спикеров.
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         OutlinedButton(
-                            onClick = { showOriginalText = true },
+                            onClick = {
+                                showOriginalText = true
+                            },
                             enabled = state.originalText.isNotEmpty(),
+                            modifier = Modifier.weight(1f),
                         ) {
                             Text("Исходный текст")
                         }
 
                         OutlinedButton(
-                            onClick = { showTimestamps = true },
-                            enabled = state.segments.isNotEmpty(),
+                            onClick = {
+                                showSpeakers = true
+                            },
+                            enabled = state.speakers.isNotEmpty(),
+                            modifier = Modifier.weight(1f),
                         ) {
-                            Text("Реплики (${state.segments.size})")
+                            Text("Спикеры (${state.speakers.size})")
                         }
                     }
 
                     if (state.timestampsOutdated) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
                         TimestampDisclaimer()
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    OutlinedTextField(
-                        value = state.text,
-                        onValueChange = viewModel::onTextChanged,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        label = { Text("Текст расшифровки") },
-                        enabled = !state.isSaving,
-                        minLines = 10,
-                        maxLines = Int.MAX_VALUE,
+                    Text(
+                        text = "Транскрипция",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
+
+                    // Основной список реплик.
+                    // Каждая реплика — отдельная чат-карточка.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        if (state.segments.isEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                ),
+                            ) {
+                                Text(
+                                    text = "Реплики отсутствуют",
+                                    modifier = Modifier.padding(16.dp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            TranscriptFormattedText(
+                                segments = state.segments,
+                                speakers = state.speakers,
+                                enabled = !state.isSaving,
+                                onSegmentTextChanged = { position, text ->
+                                    viewModel.updateSegmentText(
+                                        position,
+                                        text,
+                                    )
+                                },
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -353,8 +429,11 @@ fun TranscriptEditorScreen(
                             modifier = Modifier.weight(1f),
                         ) {
                             Text(
-                                if (state.isSaving) "Сохранение..."
-                                else "Сохранить",
+                                if (state.isSaving) {
+                                    "Сохранение..."
+                                } else {
+                                    "Сохранить"
+                                },
                             )
                         }
                     }
@@ -363,14 +442,18 @@ fun TranscriptEditorScreen(
         }
     }
 
+    // Диалог выхода.
     if (showExitDialog) {
         AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text("Несохранённые изменения") },
+            onDismissRequest = {
+                showExitDialog = false
+            },
+            title = {
+                Text("Несохранённые изменения")
+            },
             text = {
                 Text(
-                    "Текст или название изменены, но ещё не сохранены. " +
-                        "Сохранить изменения перед выходом?",
+                    "Сохранить изменения перед выходом?",
                 )
             },
             confirmButton = {
@@ -397,7 +480,9 @@ fun TranscriptEditorScreen(
                     }
 
                     TextButton(
-                        onClick = { showExitDialog = false },
+                        onClick = {
+                            showExitDialog = false
+                        },
                     ) {
                         Text("Отмена")
                     }
@@ -406,14 +491,19 @@ fun TranscriptEditorScreen(
         )
     }
 
+    // Удаление.
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Удалить расшифровку?") },
+            onDismissRequest = {
+                showDeleteDialog = false
+            },
+            title = {
+                Text("Удалить расшифровку?")
+            },
             text = {
                 Text(
-                    "Запись будет удалена вместе с исходным текстом, словами " +
-                        "и таймкодами. Действие нельзя отменить.",
+                    "Расшифровка будет удалена вместе с репликами, " +
+                        "словами и таймкодами.",
                 )
             },
             confirmButton = {
@@ -431,7 +521,9 @@ fun TranscriptEditorScreen(
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showDeleteDialog = false },
+                    onClick = {
+                        showDeleteDialog = false
+                    },
                 ) {
                     Text("Отмена")
                 }
@@ -439,10 +531,15 @@ fun TranscriptEditorScreen(
         )
     }
 
+    // Исходный результат распознавания.
     if (showOriginalText) {
         AlertDialog(
-            onDismissRequest = { showOriginalText = false },
-            title = { Text("Исходный результат ASR") },
+            onDismissRequest = {
+                showOriginalText = false
+            },
+            title = {
+                Text("Исходный результат ASR")
+            },
             text = {
                 Column(
                     modifier = Modifier
@@ -450,21 +547,21 @@ fun TranscriptEditorScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
-                        text = "Этот текст не изменяется при ручном редактировании.",
+                        text = "Первоначальный результат распознавания.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
 
-                    SelectionContainer {
-                        Text(state.originalText)
-                    }
+                    Text(state.originalText)
                 }
             },
             confirmButton = {
                 TextButton(
-                    onClick = { showOriginalText = false },
+                    onClick = {
+                        showOriginalText = false
+                    },
                 ) {
                     Text("Закрыть")
                 }
@@ -472,57 +569,120 @@ fun TranscriptEditorScreen(
         )
     }
 
-    if (showTimestamps) {
+    // Управление спикерами.
+    if (showSpeakers) {
         AlertDialog(
-            onDismissRequest = { showTimestamps = false },
-            title = { Text("Реплики и таймкоды") },
+            onDismissRequest = {
+                showSpeakers = false
+            },
+            title = {
+                Text("Список спикеров")
+            },
             text = {
                 Column(
                     modifier = Modifier
-                        .heightIn(max = 420.dp)
+                        .heightIn(max = 440.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
-                    Text(
-                        text = "Таймкоды относятся к исходному результату " +
-                            "распознавания.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    state.speakers.forEach { speaker ->
+                        var editingName by remember(
+                            speaker.id,
+                            speaker.name,
+                        ) {
+                            mutableStateOf(speaker.name)
+                        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    state.segments.forEach { segment ->
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = segment.speaker,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    text = speaker.id,
                                     modifier = Modifier.weight(1f),
-                                )
-
-                                Text(
-                                    text = "${formatTimestamp(segment.startMs)} → " +
-                                        formatTimestamp(segment.endMs),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .background(
+                                            Color(speaker.color),
+                                            CircleShape,
+                                        ),
+                                )
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(Modifier.height(6.dp))
 
-                            SelectionContainer {
-                                Text(
-                                    text = segment.text,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
+                            OutlinedTextField(
+                                value = editingName,
+                                onValueChange = {
+                                    editingName = it
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = {
+                                    Text("Имя спикера")
+                                },
+                                singleLine = true,
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Text(
+                                "Цвет",
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+
+                            Spacer(Modifier.height(6.dp))
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                SpeakerColors.palette.forEach { color ->
+                                    val selected = speaker.color == color
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(
+                                                Color(color),
+                                                CircleShape,
+                                            )
+                                            .clickable {
+                                                viewModel.changeSpeakerColor(
+                                                    speaker.id,
+                                                    color,
+                                                )
+                                            }
+                                            .then(
+                                                if (selected) {
+                                                    Modifier.padding(3.dp)
+                                                } else {
+                                                    Modifier
+                                                },
+                                            ),
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    viewModel.renameSpeaker(
+                                        speaker.id,
+                                        editingName,
+                                    )
+                                },
+                                enabled = editingName.isNotBlank() &&
+                                    editingName.trim() != speaker.name,
+                            ) {
+                                Text("Сохранить имя")
                             }
                         }
 
@@ -534,9 +694,11 @@ fun TranscriptEditorScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { showTimestamps = false },
+                    onClick = {
+                        showSpeakers = false
+                    },
                 ) {
-                    Text("Закрыть")
+                    Text("Готово")
                 }
             },
         )

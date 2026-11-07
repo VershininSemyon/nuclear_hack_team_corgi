@@ -1,3 +1,4 @@
+
 package com.example.baseapp.data.db
 
 import androidx.room.Embedded
@@ -101,4 +102,10 @@ data class TranscriptWithRelations(
         entityColumn = "transcriptId",
     )
     val segments: List<TranscriptSegmentEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "transcriptId",
+    )
+    val speakers: List<SpeakerEntity>,
 )

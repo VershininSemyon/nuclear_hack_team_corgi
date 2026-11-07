@@ -1,3 +1,4 @@
+
 package com.example.baseapp.ui.editor
 
 import androidx.lifecycle.SavedStateHandle
@@ -7,6 +8,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.baseapp.audio.AudioFormat
+import com.example.baseapp.data.SpeakerProfile
 import com.example.baseapp.data.TranscriptDraftStore
 import com.example.baseapp.data.TranscriptRepository
 import com.example.baseapp.transcriber.TranscriptSegment
@@ -37,6 +39,8 @@ data class TranscriptEditorUiState(
     val isEdited: Boolean = false,
     val words: List<WordTimestamp> = emptyList(),
     val segments: List<TranscriptSegment> = emptyList(),
+    val savedSegments: List<TranscriptSegment> = emptyList(),
+    val speakers: List<SpeakerProfile> = emptyList(),
     val isSaving: Boolean = false,
     val hasUnsavedChanges: Boolean = false,
     val draftRestored: Boolean = false,
@@ -54,9 +58,10 @@ class TranscriptEditorViewModel(
     private val draftStore: TranscriptDraftStore,
 ) : ViewModel() {
 
-    private val transcriptId: Long = checkNotNull(savedStateHandle.get<Long>(ARG_ID)) {
-        "Не передан id расшифровки"
-    }
+    private val transcriptId: Long =
+        checkNotNull(savedStateHandle.get<Long>(ARG_ID)) {
+            "Не передан id расшифровки"
+        }
 
     private val _state = MutableStateFlow(
         TranscriptEditorUiState(id = transcriptId),
@@ -73,10 +78,13 @@ class TranscriptEditorViewModel(
         _state.update {
             it.copy(
                 title = value,
-                hasUnsavedChanges = value != it.savedTitle || it.text != it.savedText,
+                hasUnsavedChanges = value != it.savedTitle ||
+                    it.text != it.savedText ||
+                    it.segments != it.savedSegments,
                 draftRestored = false,
             )
         }
+
         savedStateHandle[KEY_TITLE] = value
         scheduleDraftSave()
     }
@@ -85,32 +93,133 @@ class TranscriptEditorViewModel(
         _state.update {
             it.copy(
                 text = value,
-                hasUnsavedChanges = it.title != it.savedTitle || value != it.savedText,
+                hasUnsavedChanges = it.title != it.savedTitle ||
+                    value != it.savedText ||
+                    it.segments != it.savedSegments,
                 draftRestored = false,
             )
         }
+
         savedStateHandle[KEY_TEXT] = value
         scheduleDraftSave()
     }
 
+    /**
+     * Обновляет одну реплику.
+     * Общий текст транскрипции формируется заново из списка реплик.
+     */
+    fun updateSegmentText(position: Int, value: String) {
+        _state.update { current ->
+            if (position !in current.segments.indices) {
+                return@update current
+            }
+
+            val updatedSegments = current.segments.toMutableList().apply {
+                this[position] = this[position].copy(text = value)
+            }
+
+            val updatedText = updatedSegments.joinToString(" ") {
+                it.text.trim()
+            }.trim()
+
+            current.copy(
+                segments = updatedSegments,
+                text = updatedText,
+                hasUnsavedChanges = current.title != current.savedTitle ||
+                    updatedText != current.savedText ||
+                    updatedSegments != current.savedSegments,
+                draftRestored = false,
+            )
+        }
+
+        savedStateHandle[KEY_TEXT] = _state.value.text
+        scheduleDraftSave()
+    }
+
+    fun renameSpeaker(speakerId: String, name: String) {
+        val cleanName = name.trim()
+        if (cleanName.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repository.updateSpeakerName(
+                        transcriptId,
+                        speakerId,
+                        cleanName,
+                    )
+                    repository.getSpeakers(transcriptId)
+                }.also { speakers ->
+                    _state.update { it.copy(speakers = speakers) }
+                }
+            } catch (t: Throwable) {
+                _state.update {
+                    it.copy(
+                        errorMessage = t.message
+                            ?: "Не удалось изменить имя спикера",
+                    )
+                }
+            }
+        }
+    }
+
+    fun changeSpeakerColor(speakerId: String, color: Long) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repository.updateSpeakerColor(
+                        transcriptId,
+                        speakerId,
+                        color,
+                    )
+                    repository.getSpeakers(transcriptId)
+                }.also { speakers ->
+                    _state.update { it.copy(speakers = speakers) }
+                }
+            } catch (t: Throwable) {
+                _state.update {
+                    it.copy(
+                        errorMessage = t.message
+                            ?: "Не удалось изменить цвет спикера",
+                    )
+                }
+            }
+        }
+    }
+
     fun save() {
         val snapshot = _state.value
-        if (snapshot.isLoading || snapshot.isSaving || snapshot.deleted) return
+
+        if (snapshot.isLoading || snapshot.isSaving || snapshot.deleted) {
+            return
+        }
+
         if (snapshot.title.isBlank()) {
-            _state.update { it.copy(errorMessage = "Название не может быть пустым") }
+            _state.update {
+                it.copy(errorMessage = "Название не может быть пустым")
+            }
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isSaving = true, errorMessage = null, message = null) }
+            _state.update {
+                it.copy(
+                    isSaving = true,
+                    errorMessage = null,
+                    message = null,
+                )
+            }
+
             try {
                 val success = withContext(Dispatchers.IO) {
                     repository.saveEdits(
                         id = transcriptId,
                         title = snapshot.title,
                         text = snapshot.text,
+                        segments = snapshot.segments,
                     )
                 }
+
                 if (!success) {
                     _state.update {
                         it.copy(
@@ -123,11 +232,13 @@ class TranscriptEditorViewModel(
                 }
 
                 draftStore.clear(transcriptId)
+
                 _state.update {
                     it.copy(
                         isSaving = false,
                         savedTitle = it.title,
                         savedText = it.text,
+                        savedSegments = it.segments,
                         isEdited = it.text != it.originalText,
                         updatedAt = System.currentTimeMillis(),
                         hasUnsavedChanges = false,
@@ -139,7 +250,8 @@ class TranscriptEditorViewModel(
                 _state.update {
                     it.copy(
                         isSaving = false,
-                        errorMessage = t.message ?: "Не удалось сохранить изменения",
+                        errorMessage = t.message
+                            ?: "Не удалось сохранить изменения",
                     )
                 }
             }
@@ -148,16 +260,20 @@ class TranscriptEditorViewModel(
 
     fun cancelChanges() {
         if (!_state.value.hasUnsavedChanges) return
+
         draftStore.clear(transcriptId)
+
         _state.update {
             it.copy(
                 title = it.savedTitle,
                 text = it.savedText,
+                segments = it.savedSegments,
                 hasUnsavedChanges = false,
                 draftRestored = false,
                 message = "Изменения отменены",
             )
         }
+
         savedStateHandle[KEY_TITLE] = _state.value.title
         savedStateHandle[KEY_TEXT] = _state.value.text
     }
@@ -165,24 +281,43 @@ class TranscriptEditorViewModel(
     fun delete() {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { repository.delete(transcriptId) }
+                withContext(Dispatchers.IO) {
+                    repository.delete(transcriptId)
+                }
+
                 draftStore.clear(transcriptId)
-                _state.update { it.copy(deleted = true, message = "Расшифровка удалена") }
+
+                _state.update {
+                    it.copy(
+                        deleted = true,
+                        message = "Расшифровка удалена",
+                    )
+                }
             } catch (t: Throwable) {
                 _state.update {
-                    it.copy(errorMessage = t.message ?: "Не удалось удалить расшифровку")
+                    it.copy(
+                        errorMessage = t.message
+                            ?: "Не удалось удалить расшифровку",
+                    )
                 }
             }
         }
     }
 
-    /** Вызывается экраном при уходе в фон, чтобы не потерять ввод. */
     fun persistDraft() {
         draftJob?.cancel()
+
         val snapshot = _state.value
+
         if (snapshot.isLoading || snapshot.deleted) return
+
         if (snapshot.hasUnsavedChanges) {
-            draftStore.save(transcriptId, snapshot.title, snapshot.text)
+            draftStore.save(
+                transcriptId,
+                snapshot.title,
+                snapshot.text,
+                snapshot.segments.map { it.text },
+            )
         } else {
             draftStore.clear(transcriptId)
         }
@@ -198,24 +333,50 @@ class TranscriptEditorViewModel(
 
     private fun load() {
         viewModelScope.launch {
-            val transcript = withContext(Dispatchers.IO) { repository.get(transcriptId) }
+            val transcript = withContext(Dispatchers.IO) {
+                repository.get(transcriptId)
+            }
+
             if (transcript == null) {
                 _state.update {
-                    it.copy(isLoading = false, notFound = true)
+                    it.copy(
+                        isLoading = false,
+                        notFound = true,
+                    )
                 }
                 return@launch
             }
 
             val draft = draftStore.load(transcriptId)
+
             val useDraft = draft != null &&
-                (draft.title != transcript.title || draft.text != transcript.text)
+                (
+                    draft.title != transcript.title ||
+                        draft.text != transcript.text
+                    )
 
             val title = savedStateHandle.get<String>(KEY_TITLE)
                 ?: draft?.takeIf { useDraft }?.title
                 ?: transcript.title
+
             val text = savedStateHandle.get<String>(KEY_TEXT)
                 ?: draft?.takeIf { useDraft }?.text
                 ?: transcript.text
+
+            val restoredSegments =
+                if (
+                    useDraft &&
+                    draft != null &&
+                    draft.segmentTexts.size == transcript.segments.size
+                ) {
+                    transcript.segments.mapIndexed { index, segment ->
+                        segment.copy(
+                            text = draft.segmentTexts[index],
+                        )
+                    }
+                } else {
+                    transcript.segments
+                }
 
             _state.value = TranscriptEditorUiState(
                 id = transcript.id,
@@ -231,8 +392,11 @@ class TranscriptEditorViewModel(
                 updatedAt = transcript.updatedAt,
                 isEdited = transcript.isEdited,
                 words = transcript.words,
-                segments = transcript.segments,
-                hasUnsavedChanges = title != transcript.title || text != transcript.text,
+                segments = restoredSegments,
+                savedSegments = transcript.segments,
+                speakers = transcript.speakers,
+                hasUnsavedChanges = title != transcript.title ||
+                    text != transcript.text,
                 draftRestored = useDraft,
             )
         }
@@ -240,12 +404,23 @@ class TranscriptEditorViewModel(
 
     private fun scheduleDraftSave() {
         draftJob?.cancel()
+
         draftJob = viewModelScope.launch {
             delay(700)
+
             val snapshot = _state.value
-            if (snapshot.isLoading || snapshot.deleted) return@launch
+
+            if (snapshot.isLoading || snapshot.deleted) {
+                return@launch
+            }
+
             if (snapshot.hasUnsavedChanges) {
-                draftStore.save(transcriptId, snapshot.title, snapshot.text)
+                draftStore.save(
+                    transcriptId,
+                    snapshot.title,
+                    snapshot.text,
+                    snapshot.segments.map { it.text },
+                )
             } else {
                 draftStore.clear(transcriptId)
             }
@@ -259,24 +434,27 @@ class TranscriptEditorViewModel(
 
     companion object {
         const val ARG_ID = "id"
+
         private const val KEY_TITLE = "editor_title"
         private const val KEY_TEXT = "editor_text"
 
         fun factory(
             repository: TranscriptRepository,
             draftStore: TranscriptDraftStore,
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(
-                modelClass: Class<T>,
-                extras: CreationExtras,
-            ): T {
-                return TranscriptEditorViewModel(
-                    savedStateHandle = extras.createSavedStateHandle(),
-                    repository = repository,
-                    draftStore = draftStore,
-                ) as T
+        ): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(
+                    modelClass: Class<T>,
+                    extras: CreationExtras,
+                ): T {
+                    return TranscriptEditorViewModel(
+                        savedStateHandle = extras.createSavedStateHandle(),
+                        repository = repository,
+                        draftStore = draftStore,
+                    ) as T
+                }
             }
-        }
     }
 }

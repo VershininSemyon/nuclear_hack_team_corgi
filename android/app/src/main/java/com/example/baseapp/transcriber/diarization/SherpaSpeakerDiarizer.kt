@@ -72,9 +72,7 @@ class SherpaSpeakerDiarizer(
         samples: FloatArray,
         sampleRate: Int,
     ): List<TranscriptSegment> {
-        if (samples.isEmpty()) {
-            return emptyList()
-        }
+        if (samples.isEmpty()) return emptyList()
 
         require(sampleRate == engine.sampleRate()) {
             "Диаризатор ожидает ${engine.sampleRate()} Гц, " +
@@ -82,28 +80,59 @@ class SherpaSpeakerDiarizer(
         }
 
         return try {
-            engine.process(samples)
-                .mapNotNull { segment ->
-                    val start = (segment.start * 1000f)
-                        .toLong()
-                        .coerceAtLeast(0L)
+            val rawSegments = engine.process(samples)
+                .filter { it.end > it.start }
+                .sortedBy { it.start }
 
-                    val end = (segment.end * 1000f)
-                        .toLong()
-                        .coerceAtLeast(start)
-
-                    if (end <= start) {
-                        null
-                    } else {
-                        TranscriptSegment(
-                            speaker = "Спикер ${segment.speaker + 1}",
-                            startMs = start,
-                            endMs = end,
-                            text = "",
-                        )
-                    }
+            /*
+             * Получаем порядок появления уникальных ID.
+             *
+             * Например, если Sherpa вернул:
+             * 1, 1, 2, 2, 1
+             *
+             * Получим:
+             * 1 -> Спикер 1
+             * 2 -> Спикер 2
+             *
+             * Если Sherpa вернул:
+             * 2, 2, 3, 3, 2
+             *
+             * Результат будет таким же.
+             */
+            val speakerNumbers = rawSegments
+                .groupBy { it.speaker }
+                .mapValues { (_, segments) ->
+                    segments.minOf { it.start }
                 }
-                .sortedBy { it.startMs }
+                .entries
+                .sortedBy { it.value }
+                .mapIndexed { index, entry ->
+                    entry.key to index + 1
+                }
+                .toMap()
+
+            rawSegments.mapNotNull { segment ->
+                val start = (segment.start * 1000f)
+                    .toLong()
+                    .coerceAtLeast(0L)
+
+                val end = (segment.end * 1000f)
+                    .toLong()
+                    .coerceAtLeast(start)
+
+                if (end <= start) {
+                    null
+                } else {
+                    val speakerNumber = speakerNumbers[segment.speaker] ?: 1
+
+                    TranscriptSegment(
+                        speaker = "Спикер $speakerNumber",
+                        startMs = start,
+                        endMs = end,
+                        text = "",
+                    )
+                }
+            }
         } catch (t: Throwable) {
             throw IllegalStateException(
                 "Ошибка диаризации: ${t.message}",
@@ -117,9 +146,10 @@ class SherpaSpeakerDiarizer(
     }
 
     companion object {
+
         /**
-         * Назначает каждому слову спикера по максимальному пересечению
-         * временного интервала слова с интервалами диаризации.
+         * Назначает каждому слову спикера по максимальному
+         * пересечению временного интервала слова с интервалами диаризации.
          */
         fun assignSpeakers(
             words: List<WordTimestamp>,
