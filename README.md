@@ -136,7 +136,7 @@ oracle-качество; TitaNet small — самый быстрый.
 cd android
 ./gradlew assembleDebug        # APK: app/build/outputs/apk/debug/app-debug.apk
 ./gradlew installDebug         # на подключённое устройство
-./gradlew testDebugUnitTest    # 54 JVM-теста без эмулятора
+./gradlew testDebugUnitTest    # 60 JVM-тестов без эмулятора
 ```
 
 Подробная инструкция по сборке, установке модели и экранам —
