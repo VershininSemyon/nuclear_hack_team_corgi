@@ -16,10 +16,12 @@ import java.io.File
 
 class GigaAmModelMissingException(message: String) : Exception(message)
 
+class DiarizationModelMissingException(message: String) : Exception(message)
+
 /**
  * GigaAM выполняет распознавание речи, sherpa-onnx — диаризацию.
  *
- * Оба этапа работают локально на устройстве.
+ * Все необходимые модели должны быть установлены заранее.
  */
 class GigaAmTranscriber(
     context: Context,
@@ -45,12 +47,21 @@ class GigaAmTranscriber(
         }
 
         withContext(Dispatchers.IO) {
-            // 1. Проверяем наличие модели GigaAM.
-            val missing = modelManager.missingFiles()
+            val missingGigaAm = modelManager.missingFiles()
 
-            if (missing.isNotEmpty()) {
+            if (missingGigaAm.isNotEmpty()) {
                 throw GigaAmModelMissingException(
-                    GigaAmModelFiles.missingFilesMessage(missing),
+                    GigaAmModelFiles.missingFilesMessage(missingGigaAm),
+                )
+            }
+
+            val missingDiarization = diarizationModelManager.missingFiles()
+
+            if (missingDiarization.isNotEmpty()) {
+                throw DiarizationModelMissingException(
+                    "Не установлены модели диаризации: " +
+                        missingDiarization.joinToString() +
+                        ". Скачайте их на главном экране.",
                 )
             }
 
@@ -62,40 +73,28 @@ class GigaAmTranscriber(
                 )
             }
 
-            // 2. Загружаем модели диаризации при первом запуске.
-            // При последующих запусках файлы уже будут находиться
-            // во внутреннем хранилище приложения.
             onProgress(0.02f)
 
-            diarizationModelManager.install { progress ->
-                onProgress(
-                    0.02f + progress.coerceIn(0f, 1f) * 0.20f,
-                )
-            }
-
-            // 3. Декодируем аудио в mono FloatArray, 16 кГц.
             val samples = AudioDecoder.decode(
                 appContext,
                 file,
             )
 
-            onProgress(0.25f)
+            onProgress(0.10f)
 
-            // 4. Распознаём речь через GigaAM.
             val asrResult = engine.transcribe(
                 samples = samples,
                 sampleRate = AudioDecoder.TARGET_SAMPLE_RATE,
             ) { progress ->
                 onProgress(
                     (
-                        0.25f +
-                            progress.coerceIn(0f, 1f) * 0.50f
+                        0.10f +
+                            progress.coerceIn(0f, 1f) * 0.60f
                         ).coerceIn(0f, 1f),
                 )
             }
 
-            // 5. Определяем интервалы спикеров.
-            onProgress(0.76f)
+            onProgress(0.72f)
 
             val diarizer = SherpaSpeakerDiarizer(
                 modelDir = diarizationModelManager.modelDir,
@@ -111,17 +110,14 @@ class GigaAmTranscriber(
                 diarizer.release()
             }
 
-            onProgress(0.96f)
+            onProgress(0.94f)
 
-            // 6. Назначаем каждому слову спикера по его таймкодам.
             val wordsWithSpeakers =
                 SherpaSpeakerDiarizer.assignSpeakers(
                     words = asrResult.words,
                     speakerIntervals = speakerIntervals,
                 )
 
-            // На следующем этапе TranscriptionResultBuilder будет
-            // группировать слова в отдельные реплики.
             val result = TranscriptionResultBuilder.build(
                 text = asrResult.text,
                 words = wordsWithSpeakers,

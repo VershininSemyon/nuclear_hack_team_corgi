@@ -3,6 +3,9 @@ package com.example.baseapp.transcriber.model
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -12,6 +15,23 @@ import java.io.BufferedInputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+
+sealed interface DiarizationModelStatus {
+    data object Installed : DiarizationModelStatus
+
+    data class Missing(
+        val missingFiles: List<String>,
+    ) : DiarizationModelStatus
+
+    data class Working(
+        val progress: Float?,
+        val message: String,
+    ) : DiarizationModelStatus
+
+    data class Error(
+        val message: String,
+    ) : DiarizationModelStatus
+}
 
 /** Загружает и устанавливает модели диаризации во внутреннее хранилище приложения. */
 class DiarizationModelManager(
@@ -24,17 +44,37 @@ class DiarizationModelManager(
     private val appContext = context.applicationContext
     private val mutex = Mutex()
 
+    private val _status = MutableStateFlow<DiarizationModelStatus>(
+        detectStatus(),
+    )
+
+    val status: StateFlow<DiarizationModelStatus> = _status.asStateFlow()
+
     fun isInstalled(): Boolean =
         DiarizationModelFiles.isInstalled(modelDir)
 
     fun missingFiles(): List<String> =
         DiarizationModelFiles.missingFiles(modelDir)
 
-    suspend fun install(
-        onProgress: (Float) -> Unit = {},
-    ) = withContext(Dispatchers.IO) {
+    fun refresh() {
+        if (_status.value is DiarizationModelStatus.Working) return
+        _status.value = detectStatus()
+    }
+
+    private fun detectStatus(): DiarizationModelStatus {
+        val missing = missingFiles()
+
+        return if (missing.isEmpty()) {
+            DiarizationModelStatus.Installed
+        } else {
+            DiarizationModelStatus.Missing(missing)
+        }
+    }
+
+    suspend fun install() = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (isInstalled()) {
+                _status.value = DiarizationModelStatus.Installed
                 return@withLock
             }
 
@@ -64,12 +104,25 @@ class DiarizationModelManager(
 
             try {
                 if (!segmentation.isFile || segmentation.length() == 0L) {
+                    _status.value = DiarizationModelStatus.Working(
+                        progress = 0f,
+                        message = "Скачивание модели сегментации...",
+                    )
+
                     download(
                         DiarizationModelFiles.SEGMENTATION_URL,
                         archive,
-                    ) {
-                        onProgress(it * 0.45f)
+                    ) { progress ->
+                        _status.value = DiarizationModelStatus.Working(
+                            progress = progress * 0.45f,
+                            message = "Скачивание модели сегментации...",
+                        )
                     }
+
+                    _status.value = DiarizationModelStatus.Working(
+                        progress = 0.45f,
+                        message = "Распаковка модели сегментации...",
+                    )
 
                     extractSegmentation(
                         archive,
@@ -80,11 +133,19 @@ class DiarizationModelManager(
                 }
 
                 if (!embedding.isFile || embedding.length() == 0L) {
+                    _status.value = DiarizationModelStatus.Working(
+                        progress = 0.45f,
+                        message = "Скачивание модели голосовых эмбеддингов...",
+                    )
+
                     download(
                         DiarizationModelFiles.EMBEDDING_URL,
                         embedding,
-                    ) {
-                        onProgress(0.45f + it * 0.55f)
+                    ) { progress ->
+                        _status.value = DiarizationModelStatus.Working(
+                            progress = 0.45f + progress * 0.55f,
+                            message = "Скачивание модели голосовых эмбеддингов...",
+                        )
                     }
                 }
 
@@ -93,7 +154,7 @@ class DiarizationModelManager(
                         missingFiles().joinToString()
                 }
 
-                onProgress(1f)
+                _status.value = DiarizationModelStatus.Installed
             } catch (t: Throwable) {
                 segmentation
                     .takeIf { it.exists() && it.length() == 0L }
@@ -103,10 +164,12 @@ class DiarizationModelManager(
                     .takeIf { it.exists() && it.length() == 0L }
                     ?.delete()
 
-                throw IllegalStateException(
-                    "Не удалось установить модели диаризации: ${t.message}",
-                    t,
-                )
+                val message = "Не удалось установить модели диаризации: " +
+                    (t.message ?: t.javaClass.simpleName)
+
+                _status.value = DiarizationModelStatus.Error(message)
+
+                throw IllegalStateException(message, t)
             }
         }
     }
@@ -144,9 +207,7 @@ class DiarizationModelManager(
                     while (true) {
                         val count = input.read(buffer)
 
-                        if (count < 0) {
-                            break
-                        }
+                        if (count < 0) break
 
                         output.write(buffer, 0, count)
                         copied += count

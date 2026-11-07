@@ -11,6 +11,8 @@ import com.example.baseapp.audio.AudioFileStore
 import com.example.baseapp.audio.WavRecorder
 import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.data.repository.AudioRepository
+import com.example.baseapp.transcriber.model.DiarizationModelManager
+import com.example.baseapp.transcriber.model.DiarizationModelStatus
 import com.example.baseapp.transcriber.model.GigaAmModelManager
 import com.example.baseapp.transcriber.model.ModelStatus
 import kotlinx.coroutines.Dispatchers
@@ -30,12 +32,14 @@ data class AudioLibraryUiState(
     val errorMessage: String? = null,
     val message: String? = null,
     val modelStatus: ModelStatus,
+    val diarizationStatus: DiarizationModelStatus,
 )
 
 class AudioLibraryViewModel(
     application: Application,
     private val repository: AudioRepository,
     private val modelManager: GigaAmModelManager,
+    private val diarizationModelManager: DiarizationModelManager,
 ) : AndroidViewModel(application) {
 
     private val recorder = WavRecorder(application)
@@ -49,6 +53,7 @@ class AudioLibraryViewModel(
     private val _state = MutableStateFlow(
         AudioLibraryUiState(
             modelStatus = modelManager.status.value,
+            diarizationStatus = diarizationModelManager.status.value,
         ),
     )
 
@@ -59,6 +64,14 @@ class AudioLibraryViewModel(
             modelManager.status.collect { status ->
                 _state.update {
                     it.copy(modelStatus = status)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            diarizationModelManager.status.collect { status ->
+                _state.update {
+                    it.copy(diarizationStatus = status)
                 }
             }
         }
@@ -178,10 +191,6 @@ class AudioLibraryViewModel(
         }
     }
 
-    /**
-     * Скачивает официальную модель GigaAM v3.
-     * Прогресс и ошибки приходят через modelManager.status.
-     */
     fun installModel() {
         viewModelScope.launch {
             try {
@@ -192,9 +201,6 @@ class AudioLibraryViewModel(
         }
     }
 
-    /**
-     * Устанавливает модель из выбранного пользователем архива .tar.bz2.
-     */
     fun installModelFromUri(uri: Uri, fileName: String?) {
         viewModelScope.launch {
             try {
@@ -205,8 +211,23 @@ class AudioLibraryViewModel(
         }
     }
 
+    fun installDiarizationModels() {
+        if (_state.value.diarizationStatus is DiarizationModelStatus.Working) {
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                diarizationModelManager.install()
+            } catch (_: Throwable) {
+                // Ошибка уже отражена в diarizationModelManager.status.
+            }
+        }
+    }
+
     fun refreshModelStatus() {
         modelManager.refresh()
+        diarizationModelManager.refresh()
     }
 
     fun dismissMessage() {
@@ -227,6 +248,7 @@ class AudioLibraryViewModel(
             application: Application,
             repository: AudioRepository,
             modelManager: GigaAmModelManager,
+            diarizationModelManager: DiarizationModelManager,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
 
@@ -238,6 +260,7 @@ class AudioLibraryViewModel(
                         application = application,
                         repository = repository,
                         modelManager = modelManager,
+                        diarizationModelManager = diarizationModelManager,
                     ) as T
                 }
             }

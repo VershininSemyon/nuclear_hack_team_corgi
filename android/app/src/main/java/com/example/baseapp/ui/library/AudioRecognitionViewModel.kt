@@ -35,14 +35,13 @@ class AudioRecognitionViewModel(
     application: Application,
     private val modelManager: GigaAmModelManager,
     private val transcriptRepository: TranscriptRepository,
+    private val transcriber: Transcriber,
 ) : AndroidViewModel(application) {
-
-    private val transcriber: Transcriber =
-        TranscriberFactory.create(application, modelManager)
 
     private val _state = MutableStateFlow(
         AudioRecognitionState(modelStatus = modelManager.status.value),
     )
+
     val state: StateFlow<AudioRecognitionState> = _state.asStateFlow()
 
     init {
@@ -155,10 +154,17 @@ class AudioRecognitionViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val transcriber = TranscriberFactory.create(
+                        context = application,
+                        modelManager = container.modelManager,
+                        diarizationModelManager = container.diarizationModelManager,
+                    )
+
                     return AudioRecognitionViewModel(
                         application = application,
                         modelManager = container.modelManager,
                         transcriptRepository = container.transcriptRepository,
+                        transcriber = transcriber,
                     ) as T
                 }
             }
