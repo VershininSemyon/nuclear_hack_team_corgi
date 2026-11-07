@@ -112,7 +112,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Тесты
 
-JVM-тесты (54) не требуют устройства:
+JVM-тесты (60) не требуют устройства:
 
 `ash
 ./gradlew testDebugUnitTest

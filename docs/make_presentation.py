@@ -607,14 +607,14 @@ add_notes(slide, "30 секунд: приложение умеет импорт,
 # 10. Tests ---------------------------------------------------------------
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_bg(slide, WHITE)
-title_slide(slide, "Тесты и надёжность", "150 автотестов")
+title_slide(slide, "Тесты и надёжность", "156 автотестов")
 card(slide, 0.65, 2.05, 3.25, 2.10, fill=NAVY, line=None, radius=0.10)
-text(slide, "150", 0.65, 2.22, 3.25, 0.9, 44, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
+text(slide, "156", 0.65, 2.22, 3.25, 0.9, 44, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
 text(slide, "JVM-тестов", 0.65, 3.12, 3.25, 0.3, 12, False, RGBColor(0xC9, 0xD7, 0xE8), PP_ALIGN.CENTER)
 for i, (num, label, color) in enumerate([
     ("71", "ASR", GREEN),
     ("25", "диаризация", BLUE),
-    ("54", "Android app", RGBColor(0x6A, 0x3D, 0xC7)),
+    ("60", "Android app", RGBColor(0x6A, 0x3D, 0xC7)),
 ]):
     left = 4.20 + i * 2.85
     card(slide, left, 2.05, 2.55, 2.10, fill=LIGHT, line=BORDER, radius=0.10)

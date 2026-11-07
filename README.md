@@ -177,8 +177,11 @@ val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
 ```
 .
 ├── README.md                     # этот файл: архитектура, выбор моделей, установка
+├── artifacts/                    # APK, презентация, видео
+├── config/                       # модели и переменные окружения
+├── docs/                         # архитектура, PPTX, генератор презентации
+├── src/                          # карта исходников
 ├── android/                      # готовое Android-приложение (Compose + Room)
-├── docs/ARCHITECTURE.md          # слои и устройство приложения
 ├── transcription/
 │   ├── README.md                 # как воспроизвести ASR-замеры
 │   ├── leaderboard.md            # WER, RTF, RAM, методика
@@ -194,6 +197,17 @@ val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
     ├── scripts/                  # benchmark/evaluate/word_assignment/report
     └── results/                  # leaderboard.*, raw/*.jsonl, transcripts/
 ```
+
+### Как в шаблоне хакатона
+
+| Папка | Что сдаём |
+|---|---|
+| [`artifacts/`](artifacts/) | APK, презентация, ссылка на видео |
+| [`config/`](config/) | модели, лицензии, переменные окружения |
+| [`docs/`](docs/) | архитектура, PPTX, генератор презентации |
+| [`src/`](src/) | карта исходников Android + research |
+| [`android/`](android/) | исходники приложения |
+| [`transcription/`](transcription/), [`diarization/`](diarization/) | research-код и лидерборды |
 
 Модели и датасеты не коммитятся: это несколько ГБ, они скачиваются скриптами.
 

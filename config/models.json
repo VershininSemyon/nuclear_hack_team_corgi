@@ -1,0 +1,37 @@
+{
+  "asr": {
+    "id": "gigaam-v3",
+    "name": "GigaAM v3 RNNT",
+    "files": [
+      "encoder.int8.onnx",
+      "decoder.onnx",
+      "joiner.onnx",
+      "tokens.txt"
+    ],
+    "size_mb": 229,
+    "license": "MIT",
+    "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-giga-am-v3-russian-2025-12-16.tar.bz2"
+  },
+  "diarization": {
+    "segmentation": {
+      "id": "pyannote-3.0",
+      "file": "model.int8.onnx",
+      "license": "MIT"
+    },
+    "embedding": {
+      "id": "campplus_zh_en",
+      "file": "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+      "size_mb": 28,
+      "license": "Apache-2.0"
+    },
+    "android_default": "campplus_zh_en",
+    "android_embedding_file": "3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx"
+  },
+  "llm": {
+    "id": "qwen2.5-1.5b-instruct-q4_k_m",
+    "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    "runtime": "llama.cpp via dev.ffmpegkit-maintained:llama-android:0.1.1",
+    "license": "Apache-2.0",
+    "abi": "arm64-v8a"
+  }
+}

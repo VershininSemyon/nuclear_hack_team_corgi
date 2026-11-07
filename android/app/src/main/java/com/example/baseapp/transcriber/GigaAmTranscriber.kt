@@ -1,6 +1,7 @@
 package com.example.baseapp.transcriber
 
 import android.content.Context
+import android.util.Log
 import com.example.baseapp.audio.AudioDecoder
 import com.example.baseapp.transcriber.model.DiarizationModelFiles
 import com.example.baseapp.transcriber.model.DiarizationModelManager
@@ -155,24 +156,23 @@ class GigaAmTranscriber(
      * она упала — возвращается сырой текст ASR.
      */
     private fun polishWithLlm(result: TranscriptionResult): TranscriptionResult {
-        val model = ensureLlm() ?: return result
+        val model = ensureLlm()
         if (result.segments.isEmpty()) return result
 
         val polished = result.segments.map { segment ->
             val raw = segment.text.trim()
             if (raw.isEmpty()) return@map segment
-            val maxTokens = min(512, max(64, raw.length / 2 + 32))
-            val answer = runCatching {
-                model.generate(
-                    systemPrompt = LLM_SYSTEM_PROMPT,
-                    userPrompt = raw,
-                    maxTokens = maxTokens,
-                )
-            }.getOrNull()?.trim().orEmpty()
-                .removeSurrounding("\"")
-                .removeSurrounding("«", "»")
-                .trim()
-            segment.copy(text = answer.ifBlank { segment.text })
+            val maxTokens = min(512, max(128, raw.length / 2 + 48))
+            val answer = model?.let {
+                runCatching {
+                    it.generate(
+                        systemPrompt = LLM_SYSTEM_PROMPT,
+                        userPrompt = raw,
+                        maxTokens = maxTokens,
+                    )
+                }.getOrNull()
+            }
+            segment.copy(text = LocalTextPolish.apply(raw, answer))
         }
 
         val text = polished.joinToString(" ") { it.text }.trim()
@@ -186,8 +186,13 @@ class GigaAmTranscriber(
         if (llmLoaded) return llm
         llmLoaded = true
         val file = llmModelFile ?: return null
-        if (!file.isFile) return null
-        llm = runCatching { ResearchLlama.load(file, threads = numThreads) }.getOrNull()
+        if (!file.isFile) {
+            Log.w(TAG, "LLM model not found: ${file.absolutePath}; using rule-based fallback")
+            return null
+        }
+        llm = runCatching { ResearchLlama.load(file, threads = numThreads) }
+            .onFailure { Log.w(TAG, "LLM load failed; using rule-based fallback", it) }
+            .getOrNull()
         return llm
     }
 
@@ -201,11 +206,14 @@ class GigaAmTranscriber(
     companion object {
         const val LLM_MODEL_FILE = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
+        private const val TAG = "GigaAmTranscriber"
+
         private const val LLM_SYSTEM_PROMPT = """
-            Ты — редактор расшифровки русской речи. Расставь знаки препинания,
-            заглавные буквы и исправь очевидные ошибки распознавания.
-            Не добавляй новую информацию, не меняй смысл и не пересказывай.
-            Верни только исправленный текст реплики, без кавычек и пояснений.
+            Ты — редактор расшифровки русской речи. На вход даётся одна реплика.
+            Расставь знаки препинания, заглавные буквы и исправь очевидные ошибки
+            распознавания. Не добавляй новую информацию, не меняй смысл и не
+            пересказывай. Верни ТОЛЬКО исправленный текст реплики, без кавычек,
+            пояснений и markdown.
         """
     }
 }
