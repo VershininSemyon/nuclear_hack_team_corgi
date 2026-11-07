@@ -286,6 +286,7 @@ fun TranscriptEditorScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .imePadding(),
                 ) {
@@ -384,11 +385,9 @@ fun TranscriptEditorScreen(
 
                     // Основной список реплик.
                     // Каждая реплика — отдельная чат-карточка.
+                    // Скроллится весь экран целиком, поэтому у колонки нет weight.
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (state.segments.isEmpty()) {
                             Card(
