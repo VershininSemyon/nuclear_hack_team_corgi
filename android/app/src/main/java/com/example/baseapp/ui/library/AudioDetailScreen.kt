@@ -295,17 +295,14 @@ fun AudioDetailScreen(
                     Spacer(Modifier.height(10.dp))
 
                     if (transcripts.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                tr("Для этой аудиозаписи пока нет расшифровок", "No transcripts for this recording yet"),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+                        Text(
+                            text = tr(
+                                "Для этой аудиозаписи пока нет расшифровок",
+                                "No transcripts for this recording yet",
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     } else {
                         LazyColumn(
                             modifier = Modifier.weight(1f),
