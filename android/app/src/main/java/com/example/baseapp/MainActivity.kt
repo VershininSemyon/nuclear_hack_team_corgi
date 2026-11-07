@@ -22,6 +22,9 @@ import com.example.baseapp.i18n.LanguageStore
 import com.example.baseapp.i18n.LocalLanguage
 import com.example.baseapp.i18n.LocalSetLanguage
 import com.example.baseapp.ui.AppNavHost
+import com.example.baseapp.ui.theme.LocalDarkTheme
+import com.example.baseapp.ui.theme.LocalToggleTheme
+import com.example.baseapp.ui.theme.ThemeStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,6 +32,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             var language by remember { mutableStateOf(LanguageStore.load(context)) }
+
+            val systemDark = isSystemInDarkTheme()
+            var darkTheme by remember {
+                mutableStateOf(ThemeStore.load(context) ?: systemDark)
+            }
 
             // tr() читает это значение до композиции детей.
             AppLocale.language = language
@@ -39,8 +47,14 @@ class MainActivity : ComponentActivity() {
                     LanguageStore.save(context, next)
                     language = next
                 },
+                LocalDarkTheme provides darkTheme,
+                LocalToggleTheme provides {
+                    val next = !darkTheme
+                    ThemeStore.save(context, next)
+                    darkTheme = next
+                },
             ) {
-                BaseAppTheme {
+                BaseAppTheme(darkTheme = darkTheme) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         AppNavHost()
                     }
@@ -51,13 +65,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun BaseAppTheme(content: @Composable () -> Unit) {
+fun BaseAppTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) {
-            darkColorScheme()
-        } else {
-            lightColorScheme()
-        },
+        colorScheme = if (darkTheme) darkColorScheme() else lightColorScheme(),
         content = content,
     )
 }

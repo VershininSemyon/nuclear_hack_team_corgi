@@ -13,6 +13,8 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -21,6 +23,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +43,8 @@ import com.example.baseapp.ui.DiarizationModelCard
 import com.example.baseapp.ui.LocalLlmModelCard
 import com.example.baseapp.ui.LlmPromptCard
 import com.example.baseapp.ui.LanguageSwitch
+import com.example.baseapp.ui.theme.LocalDarkTheme
+import com.example.baseapp.ui.theme.LocalToggleTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -216,6 +222,24 @@ fun AudioLibraryScreen(
                     Text(tr("Мои аудиозаписи", "My recordings"))
                 },
                 actions = {
+                    val darkTheme = LocalDarkTheme.current
+                    val toggleTheme = LocalToggleTheme.current
+
+                    IconButton(onClick = toggleTheme) {
+                        Icon(
+                            imageVector = if (darkTheme) {
+                                Icons.Filled.LightMode
+                            } else {
+                                Icons.Filled.DarkMode
+                            },
+                            contentDescription = if (darkTheme) {
+                                tr("Светлая тема", "Light theme")
+                            } else {
+                                tr("Тёмная тема", "Dark theme")
+                            },
+                        )
+                    }
+
                     LanguageSwitch()
                 },
             )
@@ -225,6 +249,7 @@ fun AudioLibraryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
             ModelStatusCard(
@@ -336,7 +361,7 @@ fun AudioLibraryScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .padding(vertical = 56.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -345,16 +370,11 @@ fun AudioLibraryScreen(
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(
-                        items = audios,
-                        key = { it.id },
-                    ) { audio ->
+                    audios.forEach { audio ->
                         AudioItem(
                             audio = audio,
                             isActive = activeAudioId == audio.id,
