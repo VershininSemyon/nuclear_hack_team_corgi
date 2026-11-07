@@ -60,9 +60,10 @@ open class SherpaDiarizer(
         File(embeddingModel).nameWithoutExtension +
             if (estimateSpeakerCount) "-sweep" else ""
 
-    private val engine: OfflineSpeakerDiarization by lazy {
+    private val engineDelegate = lazy {
         OfflineSpeakerDiarization(config = config(numClusters, threshold))
     }
+    private val engine: OfflineSpeakerDiarization by engineDelegate
 
     private fun config(clusters: Int, thr: Float): OfflineSpeakerDiarizationConfig =
         OfflineSpeakerDiarizationConfig(
@@ -140,6 +141,12 @@ open class SherpaDiarizer(
                 )
             }
             .sortedWith(compareBy({ it.start }, { it.end }))
+
+    override fun close() {
+        if (engineDelegate.isInitialized()) {
+            runCatching { engine.release() }
+        }
+    }
 
     companion object {
         /** Пороги для авто-режима: от «дробит» к «склеивает». */

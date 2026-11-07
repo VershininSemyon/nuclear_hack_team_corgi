@@ -33,11 +33,11 @@ class TranscriptJsonExporterTest {
         val rows = root.getJSONArray("transcript")
 
         assertEquals(2, rows.length())
-        assertEquals("speaker_1", rows.getJSONObject(0).getString("speaker_id"))
+        assertEquals(1, rows.getJSONObject(0).getInt("speaker_id"))
         assertEquals(1250L, rows.getJSONObject(0).getLong("start_ms"))
         assertEquals(4380L, rows.getJSONObject(0).getLong("end_ms"))
         assertEquals("Добрый день!", rows.getJSONObject(0).getString("text"))
-        assertEquals("speaker_2", rows.getJSONObject(1).getString("speaker_id"))
+        assertEquals(2, rows.getJSONObject(1).getInt("speaker_id"))
     }
 
     @Test

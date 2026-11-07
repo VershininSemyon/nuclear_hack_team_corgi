@@ -56,6 +56,17 @@ data class DiarizationResult(
         return labels
     }
 
+    /** Те же метки, но целыми ID 1..K — формат JSON `speaker_id`. */
+    fun speakerIds(): Map<Int, Int> {
+        val order = segments.sortedBy { it.start }.map { it.speaker }.distinct()
+        val ids = LinkedHashMap<Int, Int>()
+        order.forEachIndexed { index, spk -> ids[spk] = index + 1 }
+        for (spk in speakers) {
+            ids.getOrPut(spk) { ids.size + 1 }
+        }
+        return ids
+    }
+
     /** Найти спикера в момент [time] (секунды); `null`, если речи нет. */
     fun speakerAt(time: Float): Int? =
         segments.firstOrNull { time >= it.start && time < it.end }?.speaker

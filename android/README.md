@@ -127,3 +127,34 @@ Instrumentation-тесты (декодер, Room, репозиторий, GigaAM
 `ash
 ./gradlew connectedDebugAndroidTest
 `
+
+
+## Локальная LLM
+
+Приложение автоматически использует **Qwen2.5 1.5B Instruct Q4_K_M** (GGUF),
+если файл лежит по пути:
+
+```text
+/data/data/com.example.baseapp/files/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
+```
+
+Скачать модель:
+
+```bash
+cd ../transcription
+python scripts/download_llm.py --model qwen2.5-1.5b
+```
+
+Положить на устройство:
+
+```bash
+adb shell run-as com.example.baseapp mkdir -p files/models
+adb push qwen2.5-1.5b-instruct-q4_k_m.gguf \
+  /data/local/tmp/qwen2.5-1.5b-instruct-q4_k_m.gguf
+adb shell run-as com.example.baseapp cp \
+  /data/local/tmp/qwen2.5-1.5b-instruct-q4_k_m.gguf files/models/
+```
+
+Если файла нет или модель не загрузилась, приложение работает как раньше:
+текст ASR остаётся без LLM-правки. Модель правит пунктуацию и очевидные
+ошибки распознавания по каждой реплике, не меняя тайминги.

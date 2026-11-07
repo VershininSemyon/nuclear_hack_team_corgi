@@ -61,14 +61,14 @@ class DiarizationModelsTest {
     fun toMapHasOnlyTranscriptKey() {
         val transcript = DiarizedTranscript(
             transcript = listOf(
-                Utterance("speaker_1", 1250L, 4380L, "Добрый день!"),
+                Utterance(1, 1250L, 4380L, "Добрый день!"),
             ),
         )
         val map = transcript.toMap()
         assertEquals(setOf("transcript"), map.keys)
         @Suppress("UNCHECKED_CAST")
         val rows = map["transcript"] as List<Map<String, Any>>
-        assertEquals("speaker_1", rows.single()["speaker_id"])
+        assertEquals(1, rows.single()["speaker_id"])
         assertEquals(1250L, rows.single()["start_ms"])
         assertEquals(4380L, rows.single()["end_ms"])
         assertEquals("Добрый день!", rows.single()["text"])
@@ -78,15 +78,15 @@ class DiarizationModelsTest {
     fun toJsonMatchesRequiredFormat() {
         val transcript = DiarizedTranscript(
             transcript = listOf(
-                Utterance("speaker_1", 1250L, 4380L, "Добрый день!"),
-                Utterance("speaker_2", 4500L, 6000L, "Привет"),
+                Utterance(1, 1250L, 4380L, "Добрый день!"),
+                Utterance(2, 4500L, 6000L, "Привет"),
             ),
         )
         assertEquals(
             "{\"transcript\":[" +
-                "{\"speaker_id\":\"speaker_1\",\"start_ms\":1250," +
+                "{\"speaker_id\":1,\"start_ms\":1250," +
                 "\"end_ms\":4380,\"text\":\"Добрый день!\"}," +
-                "{\"speaker_id\":\"speaker_2\",\"start_ms\":4500," +
+                "{\"speaker_id\":2,\"start_ms\":4500," +
                 "\"end_ms\":6000,\"text\":\"Привет\"}]}",
             transcript.toJson(),
         )
@@ -95,7 +95,7 @@ class DiarizationModelsTest {
     @Test
     fun jsonEscapesQuotesAndControlCharacters() {
         val transcript = DiarizedTranscript(
-            transcript = listOf(Utterance("speaker_1", 0L, 1L, "он сказал \"да\"\nи ушёл")),
+            transcript = listOf(Utterance(1, 0L, 1L, "он сказал \"да\"\nи ушёл")),
         )
         val json = transcript.toJson()
         assertEquals(true, json.contains("\\\"да\\\""))

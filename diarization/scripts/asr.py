@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 
+import numpy as np
+
 MODEL_DIR = os.environ.get(
     "GIGAAM_MODEL_DIR",
     os.path.join(

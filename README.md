@@ -1,8 +1,5 @@
 # On-device речь для Android: транскрипция + диаризация
 
-> Ветка `transcription_pipeline` — единая интеграционная ветка: ASR,
-> диаризация и сквозной класс в одном дереве.
-
 Два локальных пайплайна для Android/Kotlin, без облака и без GPU:
 
 - [`transcription/`](transcription/) — русский ASR: текст и тайминги слов,
@@ -14,8 +11,8 @@
 
 ```json
 {"transcript":[
-  {"speaker_id":"speaker_1","start_ms":1250,"end_ms":4380,"text":"Добрый день!"},
-  {"speaker_id":"speaker_2","start_ms":4500,"end_ms":6000,"text":"Привет."}
+  {"speaker_id":1,"start_ms":1250,"end_ms":4380,"text":"Добрый день!"},
+  {"speaker_id":2,"start_ms":4500,"end_ms":6000,"text":"Привет."}
 ]}
 ```
 
@@ -105,6 +102,8 @@
 WER — доля ошибок в словах; подробный разбор — в
 [`transcription/leaderboard.md`](transcription/leaderboard.md).
 
+![ASR: качество vs скорость](transcription/results/pareto.png)
+
 ### Диаризация
 
 
@@ -118,6 +117,8 @@ WER — доля ошибок в словах; подробный разбор �
 DER — среднее по AMI test / Vox test / RU test (1 + 1 + 8 файлов). Полный
 русский диалоговый тест: 5 диалогов, DER **18.97%**, word accuracy **88.11%**,
 K exact 5/5. Подробности — в [`diarization/README.md`](diarization/README.md).
+
+![Диаризация: качество vs скорость](diarization/results/pareto_diarization.png)
 
 **Вывод:** CAM++ zh/en — дефолт для Android; ERes2Net en — если важнее
 oracle-качество; TitaNet small — самый быстрый.

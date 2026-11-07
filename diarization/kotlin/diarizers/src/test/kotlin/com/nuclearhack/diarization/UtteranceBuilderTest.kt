@@ -6,7 +6,7 @@ import org.junit.Test
 
 class UtteranceBuilderTest {
 
-    private val labels = mapOf(0 to "speaker_1", 1 to "speaker_2")
+    private val labels = mapOf(0 to 1, 1 to 2)
 
     private fun word(word: String, start: Float, end: Float, speaker: Int) =
         SpeakerWord(word, start, end, speaker)
@@ -21,11 +21,11 @@ class UtteranceBuilderTest {
         )
         val result = UtteranceBuilder.build(words, labels)
         assertEquals(2, result.size)
-        assertEquals("speaker_1", result[0].speakerId)
+        assertEquals(1, result[0].speakerId)
         assertEquals("привет мир", result[0].text)
         assertEquals(0L, result[0].startMs)
         assertEquals(1000L, result[0].endMs)
-        assertEquals("speaker_2", result[1].speakerId)
+        assertEquals(2, result[1].speakerId)
         assertEquals("как дела", result[1].text)
     }
 
@@ -59,7 +59,7 @@ class UtteranceBuilderTest {
     fun usesProvidedLabelOrDefault() {
         val words = listOf(word("текст", 0f, 1f, 7))
         val result = UtteranceBuilder.build(words, emptyMap())
-        assertEquals("speaker_8", result.single().speakerId)
+        assertEquals(8, result.single().speakerId)
     }
 
     @Test

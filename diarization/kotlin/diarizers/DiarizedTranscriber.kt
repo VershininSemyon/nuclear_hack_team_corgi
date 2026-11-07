@@ -22,7 +22,7 @@ import kotlin.math.min
  * Выход — ровно формат из ТЗ:
  * ```json
  * {"transcript":[
- *   {"speaker_id":"speaker_1","start_ms":1250,"end_ms":4380,"text":"Добрый день!"}
+ *   {"speaker_id":1,"start_ms":1250,"end_ms":4380,"text":"Добрый день!"}
  * ]}
  * ```
  *
@@ -59,7 +59,7 @@ class DiarizedTranscriber(
      * @property llmSystemPrompt системный промпт редактора;
      * @property llmMaxTokens верхняя граница ответа LLM;
      * @property detectSpeakers `false` — не запускать диаризацию и отдать
-     *   весь текст одним `speaker_1` (полезно для коротких заметок).
+     *   весь текст одним `speaker_id = 1` (полезно для коротких заметок).
      */
     data class Options(
         val maxGapSeconds: Float = 1.2f,
@@ -123,7 +123,7 @@ class DiarizedTranscriber(
             )
         }
 
-        val labels = diarization.speakerLabels()
+        val labels = diarization.speakerIds()
         val words = WordSpeakerAssigner.assign(asr.words, diarization)
         var utterances = UtteranceBuilder.build(
             words = words,
@@ -138,7 +138,7 @@ class DiarizedTranscriber(
             val spk = diarization.speakerAt(0f) ?: diarization.speakers.firstOrNull() ?: 0
             utterances = listOf(
                 Utterance(
-                    speakerId = labels[spk] ?: "speaker_1",
+                    speakerId = labels[spk] ?: 1,
                     startMs = 0L,
                     endMs = (durationSeconds * 1000f).toLong().coerceAtLeast(0L),
                     text = asr.text.trim(),

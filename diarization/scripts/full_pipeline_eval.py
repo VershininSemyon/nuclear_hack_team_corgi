@@ -28,23 +28,23 @@ DATASETS = dict(WORD_DATASETS)
 DATASETS["dialogs_ru"] = ("data/dialogs_ru/test", False)
 
 
-def speaker_labels(segments) -> dict[int, str]:
+def speaker_labels(segments) -> dict[int, int]:
     """speaker_1 is the first cluster to speak, as in the Kotlin API."""
     order = [
         int(s["speaker"])
         for s in sorted(segments, key=lambda x: (x["start"], x["end"]))
     ]
-    labels: dict[int, str] = {}
+    labels: dict[int, int] = {}
     for spk in order:
         if spk not in labels:
-            labels[spk] = f"speaker_{len(labels) + 1}"
+            labels[spk] = len(labels) + 1
     return labels
 
 
 def build_utterances(
     words: list[dict],
     speakers: list[int | None],
-    labels: dict[int, str],
+    labels: dict[int, int],
     max_gap: float = 1.2,
     max_duration: float = 15.0,
 ) -> list[dict]:
@@ -66,7 +66,7 @@ def build_utterances(
         text = " ".join(str(w["word"]).strip() for w, _ in current)
         out.append(
             {
-                "speaker_id": labels.get(spk, f"speaker_{spk + 1}"),
+                "speaker_id": labels.get(spk, spk + 1),
                 "start_ms": int(round(start * 1000)),
                 "end_ms": int(round(end * 1000)),
                 "text": text,

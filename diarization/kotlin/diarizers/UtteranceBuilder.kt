@@ -8,13 +8,14 @@ import kotlin.math.roundToLong
  * `speaker_id`, `start_ms`, `end_ms`, `text`.
  */
 data class Utterance(
-    val speakerId: String,
+    val speakerId: Int,
     val startMs: Long,
     val endMs: Long,
     val text: String,
 ) {
     init {
         require(endMs >= startMs) { "endMs ($endMs) должен быть >= startMs ($startMs)" }
+        require(speakerId >= 1) { "speakerId должен быть >= 1" }
     }
 
     /** Словарь в формате из ТЗ. */
@@ -31,7 +32,7 @@ data class Utterance(
  *
  * [toMap] и [toJson] выдают именно тот формат, который ждёт приложение:
  * ```json
- * {"transcript":[{"speaker_id":"speaker_1","start_ms":1250,"end_ms":4380,"text":"Добрый день!"}]}
+ * {"transcript":[{"speaker_id":1,"start_ms":1250,"end_ms":4380,"text":"Добрый день!"}]}
  * ```
  */
 data class DiarizedTranscript(
@@ -47,7 +48,7 @@ data class DiarizedTranscript(
         sb.append("{\"transcript\":[")
         transcript.forEachIndexed { index, u ->
             if (index > 0) sb.append(',')
-            sb.append("{\"speaker_id\":").append(jsonString(u.speakerId))
+            sb.append("{\"speaker_id\":").append(u.speakerId)
             sb.append(",\"start_ms\":").append(u.startMs)
             sb.append(",\"end_ms\":").append(u.endMs)
             sb.append(",\"text\":").append(jsonString(u.text))
@@ -95,7 +96,7 @@ object UtteranceBuilder {
 
     fun build(
         words: List<SpeakerWord>,
-        labels: Map<Int, String>,
+        labels: Map<Int, Int>,
         maxGapSeconds: Float = 1.2f,
         maxUtteranceSeconds: Float = 15f,
     ): List<Utterance> {
@@ -115,7 +116,7 @@ object UtteranceBuilder {
 
         fun flush() {
             if (buffer.isEmpty()) return
-            val label = labels[speaker] ?: "speaker_${speaker + 1}"
+            val label = labels[speaker] ?: (speaker + 1)
             result += Utterance(
                 speakerId = label,
                 startMs = (start * 1000f).roundToLong().coerceAtLeast(0L),
