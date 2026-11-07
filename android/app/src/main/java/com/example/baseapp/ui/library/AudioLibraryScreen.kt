@@ -153,7 +153,7 @@ fun AudioLibraryScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        if (state.isImporting) "Импорт..." else "Загрузить аудио",
+                        if (state.isImporting) "Импорт..." else "Загрузить",
                     )
                 }
 
