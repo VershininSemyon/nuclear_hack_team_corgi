@@ -206,7 +206,7 @@ val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
 
 | Папка | Что сдаём |
 |---|---|
-| [`artifacts/`](artifacts/) | APK, презентация, ссылка на видео |
+| [`artifacts/`](artifacts/) | APK, презентация и видео |
 | [`config/`](config/) | модели, лицензии, переменные окружения |
 | [`docs/`](docs/) | архитектура, PPTX, генератор презентации |
 | [`src/`](src/) | карта исходников Android + research |
