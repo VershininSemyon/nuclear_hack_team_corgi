@@ -135,9 +135,11 @@ fun AudioDetailScreen(
 
                     Spacer(Modifier.height(12.dp))
 
+                    // Кнопка распознавания.
                     Button(
                         onClick = {
                             recognitionViewModel.recognize(
+                                audioId = audioId,
                                 filePath = audio!!.filePath,
                                 title = title.trim().ifBlank {
                                     File(audio!!.filePath).nameWithoutExtension
@@ -145,7 +147,10 @@ fun AudioDetailScreen(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isSaving &&
+                        enabled = transcripts.isEmpty() &&
+                            !recognitionState.isAlreadyTranscribed &&
+                            !recognitionState.isCheckingExisting &&
+                            !isSaving &&
                             !isDeleting &&
                             !recognitionState.isTranscribing &&
                             !recognitionState.isSaving &&
@@ -154,6 +159,13 @@ fun AudioDetailScreen(
                     ) {
                         Text(
                             when {
+                                transcripts.isNotEmpty() ||
+                                    recognitionState.isAlreadyTranscribed ->
+                                    "Аудио уже расшифровано"
+
+                                recognitionState.isCheckingExisting ->
+                                    "Проверка расшифровки..."
+
                                 recognitionState.isTranscribing ->
                                     "Распознавание..."
 

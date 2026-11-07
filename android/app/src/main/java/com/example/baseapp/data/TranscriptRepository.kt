@@ -136,6 +136,10 @@ class TranscriptRepository(
         }
     }
 
+    // Проверяет, существует ли хотя бы одна расшифровка аудиозаписи.
+    suspend fun hasTranscriptForAudio(audioId: Long): Boolean =
+        transcriptDao.getByAudioId(audioId).isNotEmpty()
+
     fun observeForAudio(
         audioId: Long,
     ): Flow<List<AudioTranscriptSummary>> =

@@ -23,6 +23,8 @@ import kotlinx.coroutines.withContext
 
 data class AudioRecognitionState(
     val modelStatus: ModelStatus,
+    val isCheckingExisting: Boolean = false,
+    val isAlreadyTranscribed: Boolean = false,
     val isTranscribing: Boolean = false,
     val isSaving: Boolean = false,
     val isCompleted: Boolean = false,
@@ -52,9 +54,16 @@ class AudioRecognitionViewModel(
         }
     }
 
-    fun recognize(filePath: String, title: String) {
+    fun recognize(audioId: Long, filePath: String, title: String) {
         val current = _state.value
-        if (current.isTranscribing || current.isSaving || current.isCompleted) return
+
+        if (
+            current.isCheckingExisting ||
+            current.isTranscribing ||
+            current.isSaving ||
+            current.isCompleted ||
+            current.isAlreadyTranscribed
+        ) return
 
         if (current.modelStatus !is ModelStatus.Installed) {
             _state.update {
@@ -66,15 +75,40 @@ class AudioRecognitionViewModel(
         viewModelScope.launch {
             _state.update {
                 it.copy(
-                    isTranscribing = true,
-                    isSaving = false,
-                    progress = 0f,
+                    isCheckingExisting = true,
                     message = null,
                     errorMessage = null,
                 )
             }
 
             try {
+                // Сначала проверяем наличие расшифровки в базе.
+                val alreadyTranscribed = withContext(Dispatchers.IO) {
+                    transcriptRepository.hasTranscriptForAudio(audioId)
+                }
+
+                if (alreadyTranscribed) {
+                    _state.update {
+                        it.copy(
+                            isCheckingExisting = false,
+                            isAlreadyTranscribed = true,
+                            message = "Аудио уже расшифровано",
+                        )
+                    }
+                    return@launch
+                }
+
+                _state.update {
+                    it.copy(
+                        isCheckingExisting = false,
+                        isTranscribing = true,
+                        isSaving = false,
+                        progress = 0f,
+                        message = null,
+                        errorMessage = null,
+                    )
+                }
+
                 val audio = withContext(Dispatchers.IO) {
                     val file = java.io.File(filePath)
                     check(file.isFile) { "Файл аудио не найден" }
@@ -122,12 +156,14 @@ class AudioRecognitionViewModel(
                     it.copy(
                         isSaving = false,
                         isCompleted = true,
+                        isAlreadyTranscribed = true,
                         message = "Расшифровка сохранена",
                     )
                 }
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(
+                        isCheckingExisting = false,
                         isTranscribing = false,
                         isSaving = false,
                         errorMessage = t.message ?: "Ошибка распознавания",
