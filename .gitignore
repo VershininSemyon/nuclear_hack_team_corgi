@@ -1,66 +1,60 @@
 
-# Logs
-*.log
-logs
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-
-# Environment variables and secrets
-
+# Virtual environments
+.venv
+venv
 .env
-.env.*
-!.env.example
-!.env.template
+env
+
+# Downloaded diarization artifacts (models/datasets/cache are several GB)
+diarization/models/
+diarization/data/
+diarization/cache/
+diarization/**/*.wav
+diarization/**/*.onnx
+diarization/*.log
+diarization/results/raw/*.log
 
 # Android / Kotlin / Gradle
-
-# Gradle
 .gradle/
 **/build/
-
-# Local Android SDK configuration
 local.properties
-
-# Android Studio
 .idea/
 *.iml
-
-# Kotlin
 .kotlin/
-
-# Generated Android files
 captures/
 .externalNativeBuild/
 .cxx/
 
-# Heavy third-party / model binaries (downloaded by gradle or scripts)
+# Model binaries and archives
 android/app/libs/*.aar
 android/app/libs/*.so
 android/app/src/main/assets/models/
 *.onnx
 *.tar.bz2
 
-# Signing keys and configuration
+# Signing keys
 *.jks
 *.keystore
 keystore.properties
 
-# VS Code
-
+# Editors / OS
 .vscode/
 !.vscode/extensions.json
-
-# Operating system
-
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Temporary files
-
 *.tmp
 *.swp
 *.swo
 *~
 *.bak
 *.orig
-\ No newline at end of file
+

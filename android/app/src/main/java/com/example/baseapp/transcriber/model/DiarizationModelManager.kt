@@ -249,7 +249,7 @@ class DiarizationModelManager(
             ),
         ).use { tar ->
             while (true) {
-                val entry = tar.nextTarEntry ?: break
+                val entry = tar.nextEntry ?: break
 
                 if (
                     !entry.isDirectory &&

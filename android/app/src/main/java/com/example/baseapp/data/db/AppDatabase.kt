@@ -33,8 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
         private const val DATABASE_NAME = "transcripts.db"
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `audios` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -51,23 +51,23 @@ abstract class AppDatabase : RoomDatabase() {
                     """,
                 )
 
-                database.execSQL(
+                db.execSQL(
                     "ALTER TABLE transcripts ADD COLUMN serverId TEXT",
                 )
 
-                database.execSQL(
+                db.execSQL(
                     "ALTER TABLE transcripts ADD COLUMN syncStatus INTEGER NOT NULL DEFAULT 1",
                 )
 
-                database.execSQL(
+                db.execSQL(
                     "ALTER TABLE transcripts ADD COLUMN audioLocalId INTEGER",
                 )
 
-                database.execSQL(
+                db.execSQL(
                     "ALTER TABLE transcripts ADD COLUMN deletedAt INTEGER",
                 )
 
-                database.execSQL(
+                db.execSQL(
                     """
                     CREATE INDEX IF NOT EXISTS
                     `index_transcripts_audioLocalId`
@@ -78,8 +78,8 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `transcript_speakers` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -96,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                     """,
                 )
 
-                database.execSQL(
+                db.execSQL(
                     """
                     CREATE INDEX IF NOT EXISTS
                     `index_transcript_speakers_transcriptId`
@@ -104,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     """,
                 )
 
-                database.execSQL(
+                db.execSQL(
                     """
                     CREATE UNIQUE INDEX IF NOT EXISTS
                     `index_transcript_speakers_transcriptId_speakerId`

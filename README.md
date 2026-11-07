@@ -1,111 +1,381 @@
+# On-device речь для Android: транскрипция + диаризация
 
-# Инструкция по установке и использованию
+> Ветка `transcription_pipeline` — единая интеграционная ветка: ASR,
+> диаризация и сквозной класс в одном дереве.
 
-## Требования
+Два локальных пайплайна для Android/Kotlin, без облака и без GPU:
 
-Для сборки и запуска приложения нужны:
+- [`transcription/`](transcription/) — русский ASR: текст и тайминги слов,
+  опциональная пунктуация локальной LLM.
+- [`diarization/`](diarization/) — «кто когда говорил»: 12 speaker-embedding
+  моделей, автоопределение числа спикеров, назначение спикера каждому слову.
 
-- JDK 17;
-- Android SDK 34;
-- Android SDK Build-Tools 34.0.0;
-- устройство или эмулятор с Android 7.0 (API 24) или новее;
-- поддерживаемая архитектура устройства: `arm64-v8a` или `x86_64`;
-- подключённое Android-устройство с включённой отладкой по USB либо запущенный эмулятор.
+Вместе они дают расшифровку встречи с репликами:
 
-Для установки модели GigaAM v3 потребуется подключение к интернету и около 250 МБ свободного места. После установки модели распознавание аудио выполняется на устройстве.
+```json
+{"transcript":[
+  {"speaker_id":"speaker_1","start_ms":1250,"end_ms":4380,"text":"Добрый день!"},
+  {"speaker_id":"speaker_2","start_ms":4500,"end_ms":6000,"text":"Привет."}
+]}
+```
 
-## Сборка и установка
+## Архитектура решения
 
-Все команды ниже нужно выполнять из папки `android`, в которой находится файл `gradlew`.
+```
+┌──────────────┐   ┌────────────────────┐   ┌──────────────────────┐
+│ file / Uri / │──▶│ AudioDecoder        │──▶│ Transcriber (ASR)     │
+│ FloatArray   │   │ 16 кГц, моно, PCM   │   │ текст + слова + время │
+└──────────────┘   └────────────────────┘   └──────────┬───────────┘
+                                                       │ words
+                                                       ▼
+┌──────────────────────┐   ┌────────────────────┐   ┌──────────────────────┐
+│ UtteranceBuilder     │◀──│ WordSpeakerAssigner │◀──│ Diarizer             │
+│ склейка реплик       │   │ спикер на слово     │   │ сегменты «кто когда» │
+└──────────┬───────────┘   └────────────────────┘   └──────────┬───────────┘
+           │                                                   │
+           ▼                                                   │
+┌──────────────────────┐   ┌────────────────────┐              │
+│ LocalLlm (опция)     │──▶│ DiarizedTranscript  │◀─────────────┘
+│ пунктуация/правка    │   │ toJson()            │
+└──────────────────────┘   └────────────────────┘
+```
 
-Перейдите в папку проекта:
+| Слой | Что делает | Где |
+|---|---|---|
+| `AudioDecoder` | WAV/MP3/MP4/M4A → 16 кГц моно PCM | `transcription/kotlin/transcribers/` |
+| `Transcriber` | GigaAM / Zipformer / Whisper / Parakeet → текст + `WordTimestamp` | `transcription/kotlin/transcribers/` |
+| `Diarizer` | pyannote segmentation + speaker embedding + кластеризация → сегменты | `diarization/kotlin/diarizers/` |
+| `WordSpeakerAssigner` | слову — спикер по перекрытию/ближайшему сегменту | `diarization/kotlin/diarizers/` |
+| `UtteranceBuilder` | слова → реплики с `speaker_id`, `start_ms`, `end_ms` | `diarization/kotlin/diarizers/` |
+| `LocalLlm` | опциональная правка каждой реплики, fallback на сырой текст | `transcription/kotlin/transcribers/` |
+| `DiarizedTranscriber` | сквозной оркестратор, отдаёт точный JSON | `diarization/kotlin/diarizers/` |
+
+Ключевое решение: **диаризация не переписывает ASR**. Сначала работает
+готовый `Transcriber`, затем его словам приписываются спикеры. Поэтому можно
+менять ASR и диаризатор независимо.
+
+## Навигация
+
+| Что | Где |
+|---|---|
+| **ASR-лидерборд:** WER, RTF, RAM, методика | [`transcription/leaderboard.md`](transcription/leaderboard.md) |
+| **ASR Kotlin-классы:** `transcribe()` → текст + слова | [`transcription/kotlin/transcribers/`](transcription/kotlin/transcribers/) |
+| **Диаризация-лидерборд:** DER, K exact/MAE, RTF, методика | [`diarization/leaderboard.md`](diarization/leaderboard.md) |
+| **Диаризация Kotlin-классы:** `Diarizer`, 12 моделей, auto-K | [`diarization/kotlin/diarizers/`](diarization/kotlin/diarizers/) |
+| **Сквозной класс:** файл → ASR → спикеры → JSON | [`DiarizedTranscriber.kt`](diarization/kotlin/diarizers/DiarizedTranscriber.kt) |
+| Подключение sherpa-onnx и jniLibs | [`transcription/kotlin/README.md`](transcription/kotlin/README.md) |
+| Как воспроизвести замеры | [`transcription/README.md`](transcription/README.md), [`diarization/README.md`](diarization/README.md) |
+
+## Выбор моделей
+
+### ASR
+
+| Сценарий | Модель | Почему |
+|---|---|---|
+| Русская речь, максимум качества | **GigaAM v3** (229 МБ) | WER 2.44% на FLEURS+Golos |
+| Слабое устройство / быстрая диктовка | **Zipformer-RU** (73 МБ) | RTF 0.019, приемлемый WER |
+| Нужен английский/мультиязычность | Parakeet TDT 0.6B v3 | сильный multilingual, но 670 МБ |
+| Whisper-совместимость | Whisper turbo/small | не рекомендуется через sherpa-onnx: зацикливается без fallback |
+
+### Диаризация
+
+| Сценарий | Модель | Почему |
+|---|---|---|
+| Android по умолчанию | **CAM++ zh/en** (~28 МБ) | лучшее соотношение DER/RTF/размер |
+| Максимум качества на встрече | **ERes2Net en** / **TitaNet small** | лучший oracle DER / самый быстрый |
+| Минимальный APK | **ERes2Net en** / **WeSpeaker ResNet34** | ~25 МБ |
+| Русская речь | CAM++ zh/en или ERes2NetV2 | проверено на RU synthetic и Dialogs |
+
+Автоопределение числа спикеров включено, но на коротких записях ошибается.
+В UI нужен ручной override `numClusters`; для on-device используйте перебор
+порогов (`estimateSpeakerCount = true`), в offline-бенчмарке — gap-статистику.
+
+## Результаты коротко
+
+### Транскрипция
+
+| # | Модель | Размер | WER чтение | WER команды | WER avg | RTF | RAM |
+|---|---|---|---|---|---|---|---|
+| 1 | **GigaAM v3** | 229 МБ | 3.77% | 1.10% | **2.44%** | 0.043 | 337 МБ |
+| 2 | **Zipformer-RU** | 73 МБ | 5.59% | 1.50% | 3.55% | **0.019** | 401 МБ |
+| 3 | Parakeet TDT 0.6B v3 | 670 МБ | 7.69% | 7.09% | 7.39% | 0.064 | 988 МБ |
+| 4 | Whisper large-v3-turbo | 1037 МБ | 13.89% | 22.48% | 18.18% | 0.382 | 2288 МБ |
+| 5 | Whisper small | 375 МБ | 11.29% | 32.57% | 21.93% | 0.343 | 1234 МБ |
+
+WER — доля ошибок в словах; подробный разбор — в
+[`transcription/leaderboard.md`](transcription/leaderboard.md).
+
+### Диаризация
+
+
+| # | Модель | DER auto, % | DER oracle, % | K exact, % | RTF | Размер |
+|---:|---|---:|---:|---:|---:|---:|
+| 1 | **CAM++ zh/en** | **33.20** | 27.69 | 50.0 | 0.094 | 28 МБ |
+| 2 | ERes2Net en | 33.43 | **27.28** | 50.0 | 0.202 | 26 МБ |
+| 3 | TitaNet small | 35.22 | 29.61 | 50.0 | **0.084** | 40 МБ |
+| 4 | ERes2NetV2 zh | 40.67 | 35.24 | 50.0 | 0.501 | 71 МБ |
+
+DER — среднее по AMI test / Vox test / RU test (1 + 1 + 8 файлов). Полный
+русский диалоговый тест: 5 диалогов, DER **18.97%**, word accuracy **88.11%**,
+K exact 5/5. Подробности — в [`diarization/README.md`](diarization/README.md).
+
+**Вывод:** CAM++ zh/en — дефолт для Android; ERes2Net en — если важнее
+oracle-качество; TitaNet small — самый быстрый.
+
+Подробные таблицы по датасетам, режимам и словам — в
+[`diarization/leaderboard.md`](diarization/leaderboard.md).
+
+## Android-приложение
+
+В репозитории есть готовое приложение `android/`: Jetpack Compose, Room,
+локальные GigaAM v3 и диаризация, запись и импорт аудио, редактор транскрипта.
+Оно не требует облака после загрузки модели.
 
 ```bash
 cd android
+./gradlew assembleDebug        # APK: app/build/outputs/apk/debug/app-debug.apk
+./gradlew installDebug         # на подключённое устройство
+./gradlew testDebugUnitTest    # 54 JVM-теста без эмулятора
 ```
 
-Соберите APK:
+Подробная инструкция по сборке, установке модели и экранам —
+[`android/README.md`](android/README.md); устройство кода и слои —
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Быстрый старт
+
+Только транскрипция:
+
+```kotlin
+val asr: Transcriber = GigaAmTranscriber(
+    context = applicationContext,
+    modelDir = File(filesDir, "models/gigaam-v3"),
+)
+val result = asr.transcribe(File("/sdcard/record.mp4")) // WAV / MP3 / MP4
+println(result.text)
+```
+
+Транскрипция + спикеры + JSON:
+
+```kotlin
+val transcriber = DiarizedTranscriber(
+    context = applicationContext,
+    transcriber = GigaAmTranscriber(applicationContext, File(filesDir, "models/gigaam-v3")),
+    diarizer = CamPlusZhEnDiarizer(
+        embeddingModel = File(modelsDir, CamPlusZhEnDiarizer.MODEL_FILE),
+        segmentationModel = File(segDir, "model.int8.onnx"),
+        estimateSpeakerCount = true,
+    ),
+    llm = LlamaCppLocalLlm.load(File(filesDir, "models/qwen2.5-1.5b-instruct-q4_k_m.gguf")), // опция
+)
+val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
+```
+
+## Структура проекта
+
+```
+.
+├── README.md                     # этот файл: архитектура, выбор моделей, установка
+├── android/                      # готовое Android-приложение (Compose + Room)
+├── docs/ARCHITECTURE.md          # слои и устройство приложения
+├── transcription/
+│   ├── README.md                 # как воспроизвести ASR-замеры
+│   ├── leaderboard.md            # WER, RTF, RAM, методика
+│   ├── kotlin/
+│   │   ├── README.md             # sherpa-onnx, jniLibs, VAD, грабли
+│   │   └── transcribers/         # 5 ASR-классов + общий интерфейс
+│   ├── scripts/                  # download/eval/speed/report
+│   └── results/                  # сырые метрики
+└── diarization/
+    ├── README.md                 # методика, auto-K, Kotlin API
+    ├── leaderboard.md            # DER, K exact/MAE, word accuracy
+    ├── kotlin/diarizers/         # Diarizer, 12 моделей, сквозной класс
+    ├── scripts/                  # benchmark/evaluate/word_assignment/report
+    └── results/                  # leaderboard.*, raw/*.jsonl, transcripts/
+```
+
+Модели и датасеты не коммитятся: это несколько ГБ, они скачиваются скриптами.
+
+## Ограничения
+
+- ASR-бенчмарк — FLEURS (чтение) и Golos (короткие команды); длинные
+  спонтанные лекции будут сложнее.
+- Диаризация проверена на AMI, VoxConverse и **синтетическом** русском
+  датасете; живую русскую речь с перекрытиями нужно проверять отдельно.
+- Автоопределение числа спикеров не идеально: записи короче ~40 с и
+  многоголосые перекрытия — зона риска.
+- Whisper через sherpa-onnx не рекомендуется: greedy-декодер без fallback
+  зацикливается на части фраз.
+- Все замеры — CPU (AMD Ryzen 5 5500), без GPU; на телефоне абсолютные RTF
+  будут другими.
+
+---
+
+## Установка
+
+### 1. Требования
+
+- Android Studio (Kotlin), `minSdk 24+`, `arm64-v8a` (для эмулятора — `x86_64`).
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx/releases) Android
+  runtime: `libsherpa-onnx-jni.so`, `libonnxruntime.so` и Kotlin API.
+- Python 3.11 — только для offline-бенчмарков, на устройстве не нужен.
+- Свободное место: ~1 ГБ под модели ASR + ~150 МБ под диаризацию.
+
+### 2. Подключить sherpa-onnx
+
+Скачайте Android-архив нужной версии и распакуйте:
 
 ```bash
-./gradlew clean assembleDebug
+wget https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-v2.0.1-android.tar.bz2
+tar xf sherpa-onnx-v2.0.1-android.tar.bz2
 ```
 
-Готовый APK появится по пути:
+Скопируйте в проект:
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
+```
+app/src/main/jniLibs/arm64-v8a/libonnxruntime.so
+app/src/main/jniLibs/arm64-v8a/libsherpa-onnx-jni.so
+app/src/main/java/com/k2fsa/sherpa/onnx/*.kt   # Kotlin API из архива
 ```
 
-Установите приложение на подключённое устройство или запущенный эмулятор:
+`app/build.gradle.kts`:
+
+```kotlin
+android {
+    defaultConfig {
+        ndk { abiFilters += listOf("arm64-v8a") } // + "x86_64" для эмулятора
+    }
+    packaging { jniLibs { useLegacyPackaging = false } }
+    androidResources { noCompress += listOf("onnx") }
+}
+```
+
+> Не обфусцируйте `com.k2fsa.sherpa.onnx`: JNI ищет классы и методы по именам.
+
+### 3. Скопировать Kotlin-классы
+
+```
+transcription/kotlin/transcribers/*.kt  → app/src/main/java/com/nuclearhack/transcription/
+diarization/kotlin/diarizers/*.kt       → app/src/main/java/com/nuclearhack/diarization/
+```
+
+Пакеты уже соответствуют этим каталогам. Для сквозного класса нужны обе
+группы: `DiarizedTranscriber` импортирует `Transcriber`, `AudioDecoder` и
+`LocalLlm` из `com.nuclearhack.transcription`.
+
+### 4. Скачать и положить модели
+
+ASR (пример для GigaAM v3):
 
 ```bash
-./gradlew installDebug
+cd transcription
+python scripts/download.py
+python scripts/download_parakeet.py          # опционально
+python scripts/download_llm.py --model qwen2.5-1.5b   # опционально, пунктуация
 ```
 
-Проверьте, что устройство подключено:
+Диаризация:
 
 ```bash
-adb devices
+cd diarization
+python scripts/download.py                   # 12 embedding-моделей + сегментатор
 ```
 
-Перезапустите приложение:
+На устройстве удобно хранить модели в `context.filesDir/models/` и докачивать
+при первом запуске (GigaAM 229 МБ не влезет в базовый APK Play Store).
+Итоговая раскладка:
+
+```
+filesDir/models/
+├── gigaam-v3/                    # encoder.int8.onnx, decoder.onnx, joiner.onnx, tokens.txt
+├── qwen2.5-1.5b-instruct-q4_k_m.gguf
+└── diarization/
+    ├── sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx
+    └── 3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx
+```
+
+`assets` подходит только для небольших моделей; `.onnx` не сжимайте
+(`noCompress`). Для больших файлов используйте `filesDir` или
+`WorkManager`-докачку.
+
+### 5. Инициализация в приложении
+
+```kotlin
+val modelsDir = File(filesDir, "models")
+val segDir = File(modelsDir, "diarization/sherpa-onnx-pyannote-segmentation-3-0")
+
+val transcriber = DiarizedTranscriber(
+    context = applicationContext,
+    transcriber = GigaAmTranscriber(
+        context = applicationContext,
+        modelDir = File(modelsDir, "gigaam-v3"),
+        numThreads = 4,
+    ),
+    diarizer = CamPlusZhEnDiarizer(
+        embeddingModel = File(modelsDir, "diarization/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"),
+        segmentationModel = File(segDir, "model.int8.onnx"),
+        numThreads = 2,
+        estimateSpeakerCount = true,
+    ),
+    llm = null, // или LlamaCppLocalLlm.load(...)
+)
+
+val json = transcriber.use { it.transcribeToJson(file) }
+```
+
+Тяжёлые операции (`transcribe`, `diarize`) запускайте в фоновом потоке:
+`Dispatchers.Default` или `Executors.newSingleThreadExecutor()`.
+
+### 6. Проверка
+
+JVM-тесты без Gradle:
+
+```powershell
+cd transcription/kotlin/transcribers
+powershell -ExecutionPolicy Bypass -File run_unit_tests.ps1
+
+cd ../../../diarization/kotlin/diarizers
+powershell -ExecutionPolicy Bypass -File run_unit_tests.ps1
+```
+
+ASR: 71 unit-тест, диаризация: 25 unit-тестов. Instrumentation-тест декодера
+лежит в `transcription/kotlin/transcribers/src/androidTest/` и требует
+эмулятор/устройство.
+
+### 7. Воспроизвести бенчмарки (опционально)
 
 ```bash
-adb shell am force-stop com.example.baseapp
-adb shell am start -n com.example.baseapp/.MainActivity
+pip install sherpa-onnx onnxruntime soundfile numpy scipy scikit-learn \
+    pyannote.core datasets jiwer num2words pyarrow psutil matplotlib
+
+cd transcription
+python scripts/download.py
+python scripts/eval.py
+python scripts/eval_golos.py
+python scripts/speed.py
+python scripts/make_report.py
+
+cd ../diarization
+python scripts/download.py
+python scripts/download_data.py
+python scripts/benchmark.py --stage screen --models all --modes oracle \
+    --scales 2.0:1.0 --per-dataset 2 --ru-per-k 2
+python scripts/benchmark.py --stage test \
+    --models campplus_zh_en,eres2net_en,eres2netv2_zh,titanet_small \
+    --modes auto,oracle,sherpa_auto,sherpa_oracle \
+    --scales 3.0:1.5 --auto-k-scales 2.0:1.0 --per-dataset 1
+python scripts/word_assignment.py --dataset ru_test --per-k 3 \
+    --model campplus_zh_en --scales 2.0:1.0 --oracle-k
+python scripts/report.py
 ```
 
-Если приложение устанавливается вручную, APK можно передать на устройство и установить командой:
+### 8. Частые проблемы
 
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Первый запуск и установка модели
-
-Для распознавания используется модель GigaAM v3. Она не включена в APK и устанавливается отдельно.
-
-1. Запустите приложение.
-2. Откройте экран распознавания.
-3. Нажмите «Скачать модель».
-4. Дождитесь окончания загрузки и установки модели.
-
-Если архив модели уже скачан, нажмите «Из файла» и выберите файл `.tar.bz2`. Приложение проверит SHA-256 архива и установит модель.
-
-Для загрузки модели требуется интернет. Само распознавание после установки модели работает без подключения к интернету.
-
-## Использование приложения
-
-### Распознавание аудиофайла
-
-1. Откройте приложение.
-2. Нажмите «Загрузить» и выберите аудиофайл.
-3. Поддерживаются форматы WAV, MP3 и MP4. Для MP4 используется только звуковая дорожка.
-4. Нажмите на загруженное аудио.
-5. Нажмите «Распознать».
-6. Дождитесь окончания обработки. Прогресс отображается на экране.
-
-### Запись с микрофона
-
-1. Откройте приложение.
-2. Разрешите приложению доступ к микрофону, когда Android запросит разрешение.
-3. Начните запись разговора.
-4. Нажмите на записанное аудио
-5. Нажмите «Распознать».
-6. Дождитесь окончания обработки. Прогресс отображается на экране.
-
-Запись сохраняется в формате WAV, моно, PCM 16 бит, 16 кГц.
-
-### Просмотр и редактирование результатов
-
-- Сохранённые расшифровки доступны на экране аудио по клику на него.
-- Результат можно открыть повторно, изменить название и отредактировать текст.
-- Изменения можно сохранить или отменить.
-- Исходный текст распознавания, список слов и временные отметки сохраняются отдельно от вручную изменённого текста. Поэтому после редактирования временные отметки относятся к исходному распознанному тексту.
-
-## Важные особенности
-
-- Аудиофайлы и результаты распознавания обрабатываются и хранятся на устройстве.
-- Интернет нужен для загрузки модели, но не для распознавания после её установки.
-- Для записи аудио требуется разрешение `RECORD_AUDIO`.
-- Для сборки Gradle автоматически загружает библиотеку `sherpa-onnx` версии 2.0.1. Поэтому при первой сборке также требуется интернет.
+| Симптом | Причина / решение |
+|---|---|
+| `UnsatisfiedLinkError` | не скопирован `libsherpa-onnx-jni.so` под нужный ABI |
+| Модель не найдена | путь должен быть абсолютным (`File(...).absolutePath`) |
+| Щелчки/мусор в тексте | аудио не 16 кГц; используйте `AudioDecoder` |
+| OOM на Whisper | 1 ГБ весов; возьмите GigaAM или Zipformer |
+| Авто-K даёт 1 спикера | короткая запись; задайте `numClusters` вручную |
+| Долгая обработка | `numThreads=2..4`, не запускайте на UI-потоке |
