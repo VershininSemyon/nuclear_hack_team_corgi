@@ -16,6 +16,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +34,7 @@ import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.ui.ModelStatusCard
 import java.io.File
+import kotlinx.coroutines.delay
 import com.example.baseapp.ui.DiarizationModelCard
 import com.example.baseapp.ui.LocalLlmModelCard
 import com.example.baseapp.ui.LlmPromptCard
@@ -57,13 +63,111 @@ fun AudioLibraryScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
-    var playingAudioId by remember { mutableStateOf<Long?>(null) }
+    var activeAudioId by remember { mutableStateOf<Long?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var positionMs by remember { mutableStateOf(0) }
+    var durationMs by remember { mutableStateOf(0) }
     var playbackError by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
         onDispose {
             player?.release()
             player = null
+        }
+    }
+
+    // Пока идёт воспроизведение, раз в четверть секунды обновляем позицию.
+    LaunchedEffect(activeAudioId, isPlaying) {
+        while (isPlaying) {
+            val current = player
+            if (current == null) break
+            positionMs = runCatching { current.currentPosition }.getOrDefault(positionMs)
+            durationMs = runCatching { current.duration }.getOrDefault(durationMs)
+            delay(250)
+        }
+    }
+
+    fun releasePlayer() {
+        runCatching { player?.stop() }
+        runCatching { player?.release() }
+        player = null
+        activeAudioId = null
+        isPlaying = false
+        positionMs = 0
+        durationMs = 0
+    }
+
+    fun playFrom(audio: AudioEntity, startMs: Int) {
+        try {
+            releasePlayer()
+            val file = File(audio.filePath)
+            check(file.exists()) { tr("Файл аудио не найден", "Audio file not found") }
+
+            val newPlayer = MediaPlayer().apply {
+                setDataSource(file.absolutePath)
+                setOnPreparedListener {
+                    durationMs = it.duration.coerceAtLeast(0)
+                    it.seekTo(startMs.coerceIn(0, durationMs))
+                    it.start()
+                    isPlaying = true
+                    positionMs = startMs
+                }
+                setOnCompletionListener { completed ->
+                    // По завершении убираем ленту промотки и освобождаем плеер.
+                    isPlaying = false
+                    positionMs = 0
+                    durationMs = 0
+                    activeAudioId = null
+                    runCatching { completed.release() }
+                    if (player === completed) player = null
+                }
+                setOnErrorListener { _, _, _ ->
+                    isPlaying = false
+                    playbackError = tr("Ошибка воспроизведения", "Playback error")
+                    true
+                }
+            }
+            player = newPlayer
+            activeAudioId = audio.id
+            newPlayer.prepareAsync()
+        } catch (t: Throwable) {
+            playbackError = t.message
+                ?: tr("Не удалось воспроизвести файл", "Could not play the file")
+            releasePlayer()
+        }
+    }
+
+    fun togglePlayPause(audio: AudioEntity) {
+        val current = player
+        if (current == null || activeAudioId != audio.id) {
+            playFrom(audio, 0)
+            return
+        }
+        try {
+            if (isPlaying) {
+                current.pause()
+                positionMs = current.currentPosition
+                isPlaying = false
+            } else {
+                if (positionMs >= durationMs - 50) {
+                    current.seekTo(0)
+                    positionMs = 0
+                }
+                current.start()
+                isPlaying = true
+            }
+        } catch (t: Throwable) {
+            playbackError = t.message
+                ?: tr("Ошибка воспроизведения", "Playback error")
+        }
+    }
+
+    fun seekTo(ms: Int) {
+        val current = player ?: return
+        val target = ms.coerceIn(0, durationMs.coerceAtLeast(0))
+        runCatching {
+            current.seekTo(target)
+            positionMs = target
         }
     }
 
@@ -253,51 +357,24 @@ fun AudioLibraryScreen(
                     ) { audio ->
                         AudioItem(
                             audio = audio,
-                            isPlaying = playingAudioId == audio.id,
+                            isActive = activeAudioId == audio.id,
+                            isPlaying = isPlaying && activeAudioId == audio.id,
+                            positionMs = if (activeAudioId == audio.id) positionMs else 0,
+                            durationMs = if (activeAudioId == audio.id) durationMs else 0,
                             onClick = {
                                 onOpenAudioDetails(audio.id)
                             },
-                            onPlay = {
-                                try {
-                                    player?.release()
-                                    player = null
-                                    playingAudioId = null
-
-                                    val file = File(audio.filePath)
-                                    check(file.exists()) {
-                                        tr("Файл аудио не найден", "Audio file not found")
-                                    }
-
-                                    val newPlayer = MediaPlayer()
-                                    player = newPlayer
-
-                                    newPlayer.setDataSource(file.absolutePath)
-
-                                    newPlayer.setOnPreparedListener {
-                                        it.start()
-                                        playingAudioId = audio.id
-                                    }
-
-                                    newPlayer.setOnCompletionListener {
-                                        it.release()
-                                        player = null
-                                        playingAudioId = null
-                                    }
-
-                                    newPlayer.prepareAsync()
-                                } catch (t: Throwable) {
-                                    playbackError = t.message
-                                        ?: tr("Не удалось воспроизвести файл", "Could not play the file")
-
-                                    player?.release()
-                                    player = null
-                                    playingAudioId = null
-                                }
+                            onPlayFromStart = {
+                                playFrom(audio, 0)
+                            },
+                            onTogglePlayPause = {
+                                togglePlayPause(audio)
                             },
                             onStop = {
-                                player?.release()
-                                player = null
-                                playingAudioId = null
+                                releasePlayer()
+                            },
+                            onSeek = { position ->
+                                seekTo(position)
                             },
                         )
                     }
@@ -333,10 +410,15 @@ fun AudioLibraryScreen(
 @Composable
 private fun AudioItem(
     audio: AudioEntity,
+    isActive: Boolean,
     isPlaying: Boolean,
+    positionMs: Int,
+    durationMs: Int,
     onClick: () -> Unit,
-    onPlay: () -> Unit,
+    onPlayFromStart: () -> Unit,
+    onTogglePlayPause: () -> Unit,
     onStop: () -> Unit,
+    onSeek: (Int) -> Unit,
 ) {
     val extension = File(audio.filePath).extension.uppercase()
     val exists = File(audio.filePath).exists()
@@ -345,41 +427,99 @@ private fun AudioItem(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = audio.title,
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = audio.title,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
 
-                Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(4.dp))
 
-                Text(
-                    text = "$extension · ${
-                        if (exists) tr("На устройстве", "On device") else tr("Файл не найден", "File not found")
-                    }",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    Text(
+                        text = "$extension · ${
+                            if (exists) tr("На устройстве", "On device") else tr("Файл не найден", "File not found")
+                        }",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                IconButton(
+                    onClick = onPlayFromStart,
+                    enabled = exists,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Replay,
+                        contentDescription = tr("С начала", "From start"),
+                    )
+                }
+
+                IconButton(
+                    onClick = onTogglePlayPause,
+                    enabled = exists,
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) {
+                            tr("Пауза", "Pause")
+                        } else {
+                            tr("Играть", "Play")
+                        },
+                    )
+                }
+
+                if (isActive) {
+                    IconButton(onClick = onStop) {
+                        Icon(
+                            imageVector = Icons.Filled.Stop,
+                            contentDescription = tr("Стоп", "Stop"),
+                        )
+                    }
+                }
             }
 
-            TextButton(
-                onClick = {
-                    if (isPlaying) onStop() else onPlay()
-                },
-                enabled = exists,
-            ) {
-                Text(if (isPlaying) tr("Стоп", "Stop") else "▶")
+            if (isActive) {
+                Spacer(Modifier.height(8.dp))
+
+                val max = durationMs.coerceAtLeast(1).toFloat()
+                Slider(
+                    value = positionMs.toFloat().coerceIn(0f, max),
+                    onValueChange = { onSeek(it.toInt()) },
+                    valueRange = 0f..max,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = formatTime(positionMs),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Text(
+                        text = formatTime(durationMs),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
             }
         }
     }
+}
+
+private fun formatTime(ms: Int): String {
+    val total = ms.coerceAtLeast(0) / 1000
+    return "%02d:%02d".format(total / 60, total % 60)
 }
 
 private fun queryDisplayName(

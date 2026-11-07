@@ -35,6 +35,9 @@ BORDER = RGBColor(0xD8, 0xE0, 0xEA)
 FONT = "Segoe UI"
 FONT_BOLD = "Segoe UI Semibold"
 
+# Единый коэффициент: весь текст в колоде чуть крупнее.
+SCALE = 1.16
+
 
 def set_bg(slide, color: RGBColor) -> None:
     fill = slide.background.fill
@@ -57,6 +60,7 @@ def text(
     valign=MSO_ANCHOR.TOP,
     margin: float = 0.04,
 ):
+    size = float(size) * SCALE
     box = slide.shapes.add_textbox(
         Inches(left), Inches(top), Inches(width), Inches(height)
     )
@@ -95,6 +99,7 @@ def bullets(
     gap: float = 6,
     bullet_char: str = "•",
 ):
+    size = float(size) * SCALE
     box = slide.shapes.add_textbox(
         Inches(left), Inches(top), Inches(width), Inches(height)
     )
@@ -183,11 +188,45 @@ def card_text(
 
 
 def title_slide(slide, title: str, kicker: str | None = None):
+    # Левая акцентная полоса из трёх цветов.
+    for i, color in enumerate([CYAN, BLUE, RGBColor(0x6A, 0x3D, 0xC7)]):
+        bar = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            Inches(0),
+            Inches(0.0 + i * 2.5),
+            Inches(0.12),
+            Inches(2.5),
+        )
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = color
+        bar.line.fill.background()
+
+    # Декоративное кольцо в правом верхнем углу.
+    ring = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL, Inches(11.55), Inches(-1.05), Inches(2.7), Inches(2.7)
+    )
+    ring.fill.background()
+    ring.line.color.rgb = LIGHT_2
+    ring.line.width = Pt(12)
+
     if kicker:
-        text(slide, kicker.upper(), 0.65, 0.42, 8.0, 0.32, 11, True, CYAN, font=FONT_BOLD)
-    text(slide, title, 0.65, 0.78, 11.9, 0.85, 30, True, NAVY, font=FONT_BOLD)
+        text(
+            slide,
+            kicker.upper(),
+            0.55,
+            0.40,
+            8.0,
+            0.30,
+            11.5,
+            True,
+            CYAN,
+            font=FONT_BOLD,
+        )
+
+    text(slide, title, 0.55, 0.78, 11.9, 0.90, 34, True, NAVY, font=FONT_BOLD)
+
     line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0.65), Inches(1.62), Inches(0.9), Inches(0.06)
+        MSO_SHAPE.RECTANGLE, Inches(0.55), Inches(1.68), Inches(1.15), Inches(0.06)
     )
     line.fill.solid()
     line.fill.fore_color.rgb = CYAN
@@ -195,11 +234,12 @@ def title_slide(slide, title: str, kicker: str | None = None):
 
 
 def footer(slide, n: int):
-    text(slide, "On-device ASR + diarization", 0.65, 7.12, 4.0, 0.24, 9, False, GRAY)
-    text(slide, f"{n:02d}", 12.2, 7.10, 0.5, 0.25, 9, True, GRAY, PP_ALIGN.RIGHT, FONT_BOLD)
+    text(slide, "On-device ASR + diarization", 0.55, 7.10, 4.0, 0.24, 9.5, False, GRAY)
+    text(slide, f"{n:02d}", 12.15, 7.08, 0.6, 0.25, 9.5, True, GRAY, PP_ALIGN.RIGHT, FONT_BOLD)
 
 
-def add_table(slide, data, left, top, width, height, font_size=11.5, col_widths=None):
+def add_table(slide, data, left, top, width, height, font_size=13.0, col_widths=None):
+    font_size = float(font_size) * SCALE
     rows, cols = len(data), len(data[0])
     table_shape = slide.shapes.add_table(rows, cols, Inches(left), Inches(top), Inches(width), Inches(height))
     table = table_shape.table
@@ -256,15 +296,15 @@ qr_code(qr_path, "https://github.com/VershininSemyon/nuclear_hack_team_corgi")
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_bg(slide, NAVY)
 text(slide, "ХАКАТОН · ON-DEVICE AI", 0.72, 0.62, 7.0, 0.3, 12, True, CYAN, font=FONT_BOLD)
-text(slide, "Локальная расшифровка встреч", 0.72, 1.18, 8.3, 1.25, 38, True, WHITE, font=FONT_BOLD)
+text(slide, "Локальная расшифровка встреч", 0.72, 1.12, 8.9, 1.45, 30, True, WHITE, font=FONT_BOLD)
 text(
     slide,
     "ASR + диаризация + локальная LLM\nна Android, без облака",
     0.72,
-    2.55,
+    2.78,
     7.5,
     1.05,
-    21,
+    20,
     False,
     RGBColor(0xC9, 0xD7, 0xE8),
 )
@@ -325,7 +365,7 @@ items = [
     ("Импорт аудио", "WAV / MP3 / MP4 / M4A"),
     ("Речь → текст", "GigaAM v3, WER 2.44%"),
     ("Диаризация", "pyannote + CAM++, auto-K"),
-    ("Тайминги реплик", "start_ms / end_ms"),
+    ("Тайминги", "start_ms / end_ms"),
     ("Отображение", "редактор и спикеры"),
     ("Экспорт", "JSON {\"transcript\":[...]}"),
 ]
@@ -376,9 +416,9 @@ card(slide, 10.15, 2.42, 1.55, 0.86, fill=LIGHT_2, line=BLUE, radius=0.12)
 text(slide, "UtteranceBuilder", 10.15, 2.54, 1.55, 0.3, 9.5, True, NAVY, PP_ALIGN.CENTER, FONT_BOLD)
 text(slide, "реплики", 10.15, 2.86, 1.55, 0.2, 8.5, False, GRAY, PP_ALIGN.CENTER)
 arrow(slide, 11.78, 2.72, 0.28, 0.26)
-card(slide, 12.14, 2.30, 0.95, 1.05, fill=RGBColor(0xED, 0xE7, 0xFF), line=RGBColor(0x6A, 0x3D, 0xC7), radius=0.12)
-text(slide, "Qwen\n2.5", 12.14, 2.48, 0.95, 0.5, 11, True, RGBColor(0x4A, 0x2A, 0x8A), PP_ALIGN.CENTER, FONT_BOLD)
-text(slide, "JSON", 12.14, 3.02, 0.95, 0.2, 9, True, RGBColor(0x4A, 0x2A, 0x8A), PP_ALIGN.CENTER)
+card(slide, 12.02, 2.30, 1.10, 1.05, fill=RGBColor(0xED, 0xE7, 0xFF), line=RGBColor(0x6A, 0x3D, 0xC7), radius=0.12)
+text(slide, "Qwen\n2.5", 12.02, 2.44, 1.10, 0.5, 9.5, True, RGBColor(0x4A, 0x2A, 0x8A), PP_ALIGN.CENTER, FONT_BOLD)
+text(slide, "JSON", 12.02, 3.00, 1.10, 0.2, 8.5, True, RGBColor(0x4A, 0x2A, 0x8A), PP_ALIGN.CENTER)
 # bottom notes
 card(slide, 0.65, 4.55, 12.0, 1.55, fill=LIGHT, line=BORDER, radius=0.10)
 text(slide, "Ключевые решения", 0.90, 4.72, 3.0, 0.3, 13, True, NAVY, font=FONT_BOLD)
@@ -574,7 +614,7 @@ features = [
     ("Импорт", "WAV / MP3 / MP4"),
     ("Запись", "микрофон, WAV 16 кГц"),
     ("Модели", "скачивание и проверка"),
-    ("Диаризация", "CAM++, auto-K"),
+    ("Диаризация", "ERes2Net, auto-K"),
     ("Спикеры", "имена и цвета"),
     ("Редактор", "правка текста"),
     ("LLM", "Qwen2.5, локально"),
@@ -600,46 +640,63 @@ for i, (name, dur, color) in enumerate([("Встреча 12 мая", "12:34", CY
 card(slide, 8.50, 4.15, 3.55, 1.75, fill=LIGHT_2, line=CYAN, radius=0.08)
 text(slide, "Расшифровка", 8.68, 4.30, 3.2, 0.28, 11.5, True, NAVY, font=FONT_BOLD)
 text(slide, "Добрый день!\nПривет, как дела?\nВсё готово к встрече.", 8.68, 4.65, 3.2, 0.8, 9.5, False, GRAY)
-text(slide, "APK ~98 МБ · minSdk 24 · arm64-v8a + x86_64", 0.65, 6.45, 7.2, 0.3, 10.5, False, GRAY)
+text(slide, "APK ~90 МБ · minSdk 24 · arm64-v8a + x86_64", 0.65, 6.45, 7.2, 0.3, 10.5, False, GRAY)
 footer(slide, 9)
 add_notes(slide, "30 секунд: приложение умеет импорт, запись, скачивание моделей, диаризацию, редактор спикеров, LLM и JSON-экспорт.")
 
-# 10. Tests ---------------------------------------------------------------
+# 10. Benchmarks -----------------------------------------------------------
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_bg(slide, WHITE)
-title_slide(slide, "Тесты и надёжность", "159 автотестов")
-card(slide, 0.65, 2.05, 3.25, 2.10, fill=NAVY, line=None, radius=0.10)
-text(slide, "159", 0.65, 2.22, 3.25, 0.9, 44, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
-text(slide, "JVM-тестов", 0.65, 3.12, 3.25, 0.3, 12, False, RGBColor(0xC9, 0xD7, 0xE8), PP_ALIGN.CENTER)
-for i, (num, label, color) in enumerate([
-    ("71", "ASR", GREEN),
-    ("25", "диаризация", BLUE),
-    ("63", "Android app", RGBColor(0x6A, 0x3D, 0xC7)),
-]):
-    left = 4.20 + i * 2.85
-    card(slide, left, 2.05, 2.55, 2.10, fill=LIGHT, line=BORDER, radius=0.10)
-    text(slide, num, left, 2.25, 2.55, 0.7, 30, True, color, PP_ALIGN.CENTER, FONT_BOLD)
-    text(slide, label, left, 3.05, 2.55, 0.3, 11, False, GRAY, PP_ALIGN.CENTER)
-card(slide, 0.65, 4.55, 12.0, 1.55, fill=LIGHT_2, line=CYAN, radius=0.10)
-text(slide, "Что проверено", 0.90, 4.70, 3.0, 0.3, 13, True, NAVY, font=FONT_BOLD)
-bullets(
+title_slide(slide, "Бенчмарки: что и с чем сравнивали", "Цифры вместо обещаний")
+add_table(
     slide,
     [
-        "ASR: тайминги, пунктуация, fallback без LLM.",
-        "Диаризация: выбор K по плато, назначение слов, JSON.",
-        "App: форматы, JSON-экспорт, цвета спикеров, файлы моделей.",
-        "Сборка: assembleDebug OK; instrumentation — decoder/Room/GigaAM.",
+        ["Компонент", "Модель", "Метрика", "RTF"],
+        ["ASR", "GigaAM v3", "WER 2.44%", "0.043"],
+        ["ASR", "Zipformer-RU", "WER 3.55%", "0.019"],
+        ["ASR", "Whisper turbo", "WER 18.18%", "0.382"],
+        ["Диаризация", "CAM++ · auto K", "DER 33.20%", "0.094"],
+        ["Диаризация", "ERes2Net en · oracle", "DER 27.28%", "0.202"],
+        ["Диалоги", "GigaAM + CAM++", "DER 18.97%", "—"],
     ],
-    0.90,
-    5.02,
-    11.3,
-    0.95,
+    0.55,
+    1.95,
+    8.10,
+    3.45,
+    12.5,
+    [1.05, 2.35, 1.55, 0.75],
+)
+metrics = [
+    ("2.44%", "WER GigaAM v3", BLUE),
+    ("18.97%", "DER на диалогах", GREEN),
+    ("88.11%", "точность слов", RGBColor(0x6A, 0x3D, 0xC7)),
+    ("5/5", "K угадан", RGBColor(0xB4, 0x5F, 0x06)),
+]
+for i, (value, label, color) in enumerate(metrics):
+    top = 1.95 + i * 0.93
+    card(slide, 8.90, top, 3.85, 0.80, fill=LIGHT, line=BORDER, radius=0.10)
+    text(slide, value, 9.02, top + 0.10, 1.55, 0.55, 21, True, color, font=FONT_BOLD)
+    text(slide, label, 10.60, top + 0.23, 2.05, 0.35, 10.5, False, GRAY)
+card(slide, 0.55, 5.72, 12.20, 1.12, fill=LIGHT_2, line=CYAN, radius=0.10)
+text(slide, "Вывод", 0.80, 5.87, 1.3, 0.30, 13.5, True, NAVY, font=FONT_BOLD)
+text(
+    slide,
+    "Русский → GigaAM v3. Слабые устройства → Zipformer. Auto-K обязателен: "
+    "фиксированный порог 0.5 даёт K=8–22 на AMI/Vox.",
+    2.05,
+    5.88,
     10.5,
+    0.80,
+    11.5,
+    False,
     GRAY,
-    2,
 )
 footer(slide, 10)
-add_notes(slide, "25 секунд: 150 тестов, все зелёные. APK собирается; instrumentation-тесты требуют устройства.")
+add_notes(
+    slide,
+    "40 секунд: сравнили ASR и 12 моделей диаризации. GigaAM — 2.44% WER; "
+    "CAM++ — 33.2% DER auto; на диалогах 18.97% DER и 88.11% точности слов.",
+)
 
 # 11. Limitations ---------------------------------------------------------
 slide = prs.slides.add_slide(prs.slide_layouts[6])
