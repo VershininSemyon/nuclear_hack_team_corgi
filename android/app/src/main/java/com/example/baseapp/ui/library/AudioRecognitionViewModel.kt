@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.library
 
+import com.example.baseapp.i18n.tr
+
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -67,7 +69,7 @@ class AudioRecognitionViewModel(
 
         if (current.modelStatus !is ModelStatus.Installed) {
             _state.update {
-                it.copy(errorMessage = "Модель GigaAM v3 не установлена")
+                it.copy(errorMessage = tr("Модель GigaAM v3 не установлена", "GigaAM v3 model is not installed"))
             }
             return
         }
@@ -92,7 +94,7 @@ class AudioRecognitionViewModel(
                         it.copy(
                             isCheckingExisting = false,
                             isAlreadyTranscribed = true,
-                            message = "Аудио уже расшифровано",
+                            message = tr("Аудио уже расшифровано", "Audio already transcribed"),
                         )
                     }
                     return@launch
@@ -111,7 +113,7 @@ class AudioRecognitionViewModel(
 
                 val audio = withContext(Dispatchers.IO) {
                     val file = java.io.File(filePath)
-                    check(file.isFile) { "Файл аудио не найден" }
+                    check(file.isFile) { tr("Файл аудио не найден", "Audio file not found") }
                     AudioFileStore.describe(file)
                 }
 
@@ -128,7 +130,7 @@ class AudioRecognitionViewModel(
                         it.copy(
                             isTranscribing = false,
                             progress = 1f,
-                            message = "Речь не распознана. Проверьте аудиофайл.",
+                            message = tr("Речь не распознана. Проверьте аудиофайл.", "No speech recognized. Check the audio file."),
                         )
                     }
                     return@launch
@@ -157,7 +159,7 @@ class AudioRecognitionViewModel(
                         isSaving = false,
                         isCompleted = true,
                         isAlreadyTranscribed = true,
-                        message = "Расшифровка сохранена",
+                        message = tr("Расшифровка сохранена", "Transcript saved"),
                     )
                 }
             } catch (t: Throwable) {
@@ -166,7 +168,7 @@ class AudioRecognitionViewModel(
                         isCheckingExisting = false,
                         isTranscribing = false,
                         isSaving = false,
-                        errorMessage = t.message ?: "Ошибка распознавания",
+                        errorMessage = t.message ?: tr("Ошибка распознавания", "Recognition error"),
                     )
                 }
             }

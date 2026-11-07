@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.editor
 
+import com.example.baseapp.i18n.tr
+
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -51,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.baseapp.appContainer
 import com.example.baseapp.data.SpeakerColors
+import com.example.baseapp.data.SpeakerProfile
 import com.example.baseapp.data.TranscriptJsonExporter
 import com.example.baseapp.ui.TimestampDisclaimer
 import com.example.baseapp.ui.formatDateTime
@@ -91,6 +96,7 @@ fun TranscriptEditorScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOriginalText by remember { mutableStateOf(false) }
     var showSpeakers by remember { mutableStateOf(false) }
+    var customColorSpeaker by remember { mutableStateOf<SpeakerProfile?>(null) }
     var exitAfterSave by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -100,12 +106,12 @@ fun TranscriptEditorScreen(
             coroutineScope.launch {
                 val result = runCatching {
                     val transcript = container.transcriptRepository.get(state.id)
-                        ?: error("Расшифровка не найдена")
+                        ?: error(tr("Расшифровка не найдена", "Transcript not found"))
 
                     val json = TranscriptJsonExporter.export(transcript)
 
                     val output = context.contentResolver.openOutputStream(uri)
-                        ?: error("Не удалось открыть файл для записи")
+                        ?: error(tr("Не удалось открыть файл для записи", "Could not open the file for writing"))
 
                     output.use {
                         it.write(json.toByteArray(Charsets.UTF_8))
@@ -113,12 +119,12 @@ fun TranscriptEditorScreen(
                 }
 
                 if (result.isSuccess) {
-                    snackbarHostState.showSnackbar("JSON-файл сохранён")
+                    snackbarHostState.showSnackbar(tr("JSON-файл сохранён", "JSON file saved"))
                 } else {
                     snackbarHostState.showSnackbar(
                         "Ошибка экспорта: ${
                             result.exceptionOrNull()?.localizedMessage
-                                ?: "неизвестная ошибка"
+                                ?: tr("неизвестная ошибка", "unknown error")
                         }",
                     )
                 }
@@ -185,7 +191,7 @@ fun TranscriptEditorScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Редактирование расшифровки",
+                        text = tr("Редактирование расшифровки", "Edit transcript"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -209,7 +215,7 @@ fun TranscriptEditorScreen(
                         },
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Назад")
+                        Text(tr("Назад", "Back"))
                     }
 
                     if (!state.isLoading && !state.notFound) {
@@ -238,7 +244,7 @@ fun TranscriptEditorScreen(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                         ) {
-                            Text("Удалить")
+                            Text(tr("Удалить", "Delete"))
                         }
                     }
                 }
@@ -267,10 +273,10 @@ fun TranscriptEditorScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text("Расшифровка не найдена")
+                    Text(tr("Расшифровка не найдена", "Transcript not found"))
 
                     TextButton(onClick = onBack) {
-                        Text("Вернуться")
+                        Text(tr("Вернуться", "Go back"))
                     }
                 }
             }
@@ -296,7 +302,7 @@ fun TranscriptEditorScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = "Восстановлены несохранённые изменения",
+                                    text = tr("Восстановлены несохранённые изменения", "Unsaved changes restored"),
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
@@ -304,7 +310,7 @@ fun TranscriptEditorScreen(
                                 TextButton(
                                     onClick = viewModel::cancelChanges,
                                 ) {
-                                    Text("Сбросить")
+                                    Text(tr("Сбросить", "Reset"))
                                 }
                             }
                         }
@@ -317,7 +323,7 @@ fun TranscriptEditorScreen(
                         onValueChange = viewModel::onTitleChanged,
                         modifier = Modifier.fillMaxWidth(),
                         label = {
-                            Text("Название")
+                            Text(tr("Название", "Title"))
                         },
                         singleLine = true,
                         enabled = !state.isSaving,
@@ -328,7 +334,7 @@ fun TranscriptEditorScreen(
                     Text(
                         text = "${state.audioFileName} · " +
                             "${state.audioFormat.displayName} · " +
-                            "создано ${formatDateTime(state.createdAt)}",
+                            tr("создано ${formatDateTime(state.createdAt)}", "created ${formatDateTime(state.createdAt)}"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -347,7 +353,7 @@ fun TranscriptEditorScreen(
                             enabled = state.originalText.isNotEmpty(),
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Исходный текст")
+                            Text(tr("Исходный текст", "Original text"))
                         }
 
                         OutlinedButton(
@@ -357,7 +363,7 @@ fun TranscriptEditorScreen(
                             enabled = state.speakers.isNotEmpty(),
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Спикеры (${state.speakers.size})")
+                            Text(tr("Спикеры (${state.speakers.size})", "Speakers (${state.speakers.size})"))
                         }
                     }
 
@@ -369,7 +375,7 @@ fun TranscriptEditorScreen(
                     Spacer(Modifier.height(14.dp))
 
                     Text(
-                        text = "Транскрипция",
+                        text = tr("Транскрипция", "Transcription"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -392,7 +398,7 @@ fun TranscriptEditorScreen(
                                 ),
                             ) {
                                 Text(
-                                    text = "Реплики отсутствуют",
+                                    text = tr("Реплики отсутствуют", "No utterances"),
                                     modifier = Modifier.padding(16.dp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -423,7 +429,7 @@ fun TranscriptEditorScreen(
                             enabled = state.hasUnsavedChanges && !state.isSaving,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Отменить")
+                            Text(tr("Отменить", "Revert"))
                         }
 
                         Button(
@@ -433,9 +439,9 @@ fun TranscriptEditorScreen(
                         ) {
                             Text(
                                 if (state.isSaving) {
-                                    "Сохранение..."
+                                    tr("Сохранение...", "Saving...")
                                 } else {
-                                    "Сохранить"
+                                    tr("Сохранить", "Save")
                                 },
                             )
                         }
@@ -452,11 +458,11 @@ fun TranscriptEditorScreen(
                 showExitDialog = false
             },
             title = {
-                Text("Несохранённые изменения")
+                Text(tr("Несохранённые изменения", "Unsaved changes"))
             },
             text = {
                 Text(
-                    "Сохранить изменения перед выходом?",
+                    tr("Сохранить изменения перед выходом?", "Save changes before leaving?"),
                 )
             },
             confirmButton = {
@@ -467,7 +473,7 @@ fun TranscriptEditorScreen(
                         viewModel.save()
                     },
                 ) {
-                    Text("Сохранить")
+                    Text(tr("Сохранить", "Save"))
                 }
             },
             dismissButton = {
@@ -479,7 +485,7 @@ fun TranscriptEditorScreen(
                             onBack()
                         },
                     ) {
-                        Text("Не сохранять")
+                        Text(tr("Не сохранять", "Do not save"))
                     }
 
                     TextButton(
@@ -487,7 +493,7 @@ fun TranscriptEditorScreen(
                             showExitDialog = false
                         },
                     ) {
-                        Text("Отмена")
+                        Text(tr("Отмена", "Cancel"))
                     }
                 }
             },
@@ -501,12 +507,12 @@ fun TranscriptEditorScreen(
                 showDeleteDialog = false
             },
             title = {
-                Text("Удалить расшифровку?")
+                Text(tr("Удалить расшифровку?", "Delete transcript?"))
             },
             text = {
                 Text(
-                    "Расшифровка будет удалена вместе с репликами, " +
-                        "словами и таймкодами.",
+                    tr("Расшифровка будет удалена вместе с репликами, ", "The transcript will be deleted together with its utterances, ") +
+                        tr("словами и таймкодами.", "words and timestamps."),
                 )
             },
             confirmButton = {
@@ -517,7 +523,7 @@ fun TranscriptEditorScreen(
                     },
                 ) {
                     Text(
-                        "Удалить",
+                        tr("Удалить", "Delete"),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -528,7 +534,7 @@ fun TranscriptEditorScreen(
                         showDeleteDialog = false
                     },
                 ) {
-                    Text("Отмена")
+                    Text(tr("Отмена", "Cancel"))
                 }
             },
         )
@@ -541,7 +547,7 @@ fun TranscriptEditorScreen(
                 showOriginalText = false
             },
             title = {
-                Text("Исходный результат ASR")
+                Text(tr("Исходный результат ASR", "Original ASR result"))
             },
             text = {
                 Column(
@@ -550,7 +556,7 @@ fun TranscriptEditorScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
-                        text = "Первоначальный результат распознавания.",
+                        text = tr("Первоначальный результат распознавания.", "The initial recognition result."),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -566,7 +572,7 @@ fun TranscriptEditorScreen(
                         showOriginalText = false
                     },
                 ) {
-                    Text("Закрыть")
+                    Text(tr("Закрыть", "Close"))
                 }
             },
         )
@@ -579,7 +585,7 @@ fun TranscriptEditorScreen(
                 showSpeakers = false
             },
             title = {
-                Text("Список спикеров")
+                Text(tr("Список спикеров", "Speakers"))
             },
             text = {
                 Column(
@@ -629,7 +635,7 @@ fun TranscriptEditorScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = {
-                                    Text("Имя спикера")
+                                    Text(tr("Имя спикера", "Speaker name"))
                                 },
                                 singleLine = true,
                             )
@@ -637,7 +643,7 @@ fun TranscriptEditorScreen(
                             Spacer(Modifier.height(8.dp))
 
                             Text(
-                                "Цвет",
+                                tr("Цвет", "Color"),
                                 style = MaterialTheme.typography.labelMedium,
                             )
 
@@ -695,6 +701,48 @@ fun TranscriptEditorScreen(
                                 }
                             }
 
+                            Spacer(Modifier.height(10.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        customColorSpeaker = speaker
+                                    },
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .background(
+                                            Brush.sweepGradient(
+                                                listOf(
+                                                    Color(0xFFFF0000),
+                                                    Color(0xFFFFFF00),
+                                                    Color(0xFF00FF00),
+                                                    Color(0xFF00FFFF),
+                                                    Color(0xFF0000FF),
+                                                    Color(0xFFFF00FF),
+                                                    Color(0xFFFF0000),
+                                                ),
+                                            ),
+                                            CircleShape,
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                            shape = CircleShape,
+                                        ),
+                                )
+
+                                Spacer(Modifier.width(10.dp))
+
+                                Text(
+                                    text = tr("Свой цвет…", "Custom color…"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+
                             Spacer(Modifier.height(8.dp))
 
                             Button(
@@ -707,7 +755,7 @@ fun TranscriptEditorScreen(
                                 enabled = editingName.isNotBlank() &&
                                     editingName.trim() != speaker.name,
                             ) {
-                                Text("Сохранить имя")
+                                Text(tr("Сохранить имя", "Save name"))
                             }
                         }
 
@@ -723,8 +771,19 @@ fun TranscriptEditorScreen(
                         showSpeakers = false
                     },
                 ) {
-                    Text("Готово")
+                    Text(tr("Готово", "Done"))
                 }
+            },
+        )
+    }
+
+    customColorSpeaker?.let { speaker ->
+        HsvColorPickerDialog(
+            initialColor = speaker.color,
+            onDismiss = { customColorSpeaker = null },
+            onConfirm = { color ->
+                viewModel.changeSpeakerColor(speaker.id, color)
+                customColorSpeaker = null
             },
         )
     }

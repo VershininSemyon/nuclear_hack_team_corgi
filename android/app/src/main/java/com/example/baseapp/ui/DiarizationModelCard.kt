@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui
 
+import com.example.baseapp.i18n.tr
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -17,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.baseapp.transcriber.model.DiarizationModelStatus
@@ -28,6 +32,7 @@ fun DiarizationModelCard(
     onRetry: () -> Unit,
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = when (status) {
                 is DiarizationModelStatus.Installed ->
@@ -40,35 +45,39 @@ fun DiarizationModelCard(
             },
         ),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Диаризация",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = tr("Диаризация", "Diarization"),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
 
-            Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(6.dp))
 
             when (status) {
                 is DiarizationModelStatus.Installed -> {
                     Text(
-                        text = "Готова",
+                        text = tr("Готова", "Ready"),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
 
                 is DiarizationModelStatus.Missing -> {
                     Text(
-                        text = "Скачайте модели спикеров.",
+                        text = tr("Скачайте модели спикеров.", "Download the speaker models."),
                         style = MaterialTheme.typography.bodySmall,
                     )
 
                     Spacer(Modifier.height(8.dp))
 
                     Button(onClick = onInstall) {
-                        Text("Скачать")
+                        Text(tr("Скачать", "Download"))
                     }
                 }
 
@@ -112,15 +121,23 @@ fun DiarizationModelCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Button(onClick = onRetry) {
-                            Text("Повторить")
+                            Text(tr("Повторить", "Retry"))
                         }
 
                         OutlinedButton(onClick = onRetry) {
-                            Text("Проверить")
+                            Text(tr("Проверить", "Check"))
                         }
                     }
                 }
             }
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            StatusDot(
+                ready = status is DiarizationModelStatus.Installed,
+                working = status is DiarizationModelStatus.Working,
+            )
         }
     }
 }

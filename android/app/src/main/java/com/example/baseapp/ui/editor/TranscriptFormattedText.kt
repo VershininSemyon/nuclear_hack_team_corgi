@@ -1,6 +1,9 @@
 
 package com.example.baseapp.ui.editor
 
+import com.example.baseapp.i18n.localizedSpeakerName
+import com.example.baseapp.i18n.tr
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -66,7 +69,7 @@ fun TranscriptFormattedText(
 
             val speaker = speakersById[segment.speaker]
 
-            val speakerName = speaker?.name ?: segment.speaker
+            val speakerName = localizedSpeakerName(speaker?.name ?: segment.speaker)
 
             val speakerColor = speaker?.let {
                 Color(it.color)
@@ -156,7 +159,7 @@ private fun TranscriptSegmentCard(
                     shape = RoundedCornerShape(12.dp),
                     textStyle = MaterialTheme.typography.bodyLarge,
                     placeholder = {
-                        Text("Текст реплики")
+                        Text(tr("Текст реплики", "Utterance text"))
                     },
                 )
             } else {
@@ -196,9 +199,9 @@ private fun TranscriptSegmentCard(
                             Icons.Default.Edit
                         },
                         contentDescription = if (isEditing) {
-                            "Сохранить изменения"
+                            tr("Сохранить изменения", "Save changes")
                         } else {
-                            "Редактировать реплику"
+                            tr("Редактировать реплику", "Edit utterance")
                         },
                         tint = MaterialTheme.colorScheme.primary,
                     )
@@ -210,7 +213,7 @@ private fun TranscriptSegmentCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Копировать реплику",
+                        contentDescription = tr("Копировать реплику", "Copy utterance"),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -230,14 +233,14 @@ private fun copySegment(
 
     clipboard.setPrimaryClip(
         ClipData.newPlainText(
-            "Реплика",
+            tr("Реплика", "Utterance"),
             text,
         ),
     )
 
     Toast.makeText(
         context,
-        "Реплика скопирована",
+        tr("Реплика скопирована", "Utterance copied"),
         Toast.LENGTH_SHORT,
     ).show()
 }

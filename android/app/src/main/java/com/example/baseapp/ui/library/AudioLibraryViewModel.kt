@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.library
 
+import com.example.baseapp.i18n.tr
+
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -12,6 +14,7 @@ import com.example.baseapp.audio.WavRecorder
 import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.data.repository.AudioRepository
 import com.example.baseapp.transcriber.model.DiarizationModelManager
+import com.example.baseapp.transcriber.LlmPromptStore
 import com.example.baseapp.transcriber.model.DiarizationModelStatus
 import com.example.baseapp.transcriber.model.GigaAmModelManager
 import com.example.baseapp.transcriber.model.LocalLlmModelManager
@@ -36,6 +39,7 @@ data class AudioLibraryUiState(
     val modelStatus: ModelStatus,
     val diarizationStatus: DiarizationModelStatus,
     val localLlmStatus: LocalLlmModelStatus,
+    val llmPrompt: String = "",
 )
 
 class AudioLibraryViewModel(
@@ -59,6 +63,7 @@ class AudioLibraryViewModel(
             modelStatus = modelManager.status.value,
             diarizationStatus = diarizationModelManager.status.value,
             localLlmStatus = localLlmModelManager.status.value,
+            llmPrompt = LlmPromptStore.load(application),
         ),
     )
 
@@ -114,7 +119,7 @@ class AudioLibraryViewModel(
                 _state.update {
                     it.copy(
                         isImporting = false,
-                        message = "Аудиозапись добавлена",
+                        message = tr("Аудиозапись добавлена", "Recording added"),
                     )
                 }
             } catch (t: Throwable) {
@@ -122,7 +127,7 @@ class AudioLibraryViewModel(
                     it.copy(
                         isImporting = false,
                         errorMessage = t.message
-                            ?: "Не удалось импортировать аудио",
+                            ?: tr("Не удалось импортировать аудио", "Could not import audio"),
                     )
                 }
             }
@@ -161,7 +166,7 @@ class AudioLibraryViewModel(
                     it.copy(
                         isStartingRecording = false,
                         errorMessage = t.message
-                            ?: "Не удалось начать запись",
+                            ?: tr("Не удалось начать запись", "Could not start recording"),
                     )
                 }
             }
@@ -175,7 +180,7 @@ class AudioLibraryViewModel(
             try {
                 withContext(Dispatchers.IO) {
                     val file = recorder.stop()
-                        ?: error("Запись получилась пустой")
+                        ?: error(tr("Запись получилась пустой", "Recording is empty"))
 
                     val info = AudioFileStore.describe(
                         file = file,
@@ -189,7 +194,7 @@ class AudioLibraryViewModel(
                 _state.update {
                     it.copy(
                         isRecording = false,
-                        message = "Запись сохранена",
+                        message = tr("Запись сохранена", "Recording saved"),
                     )
                 }
             } catch (t: Throwable) {
@@ -197,7 +202,7 @@ class AudioLibraryViewModel(
                     it.copy(
                         isRecording = false,
                         errorMessage = t.message
-                            ?: "Не удалось сохранить запись",
+                            ?: tr("Не удалось сохранить запись", "Could not save the recording"),
                     )
                 }
             }
@@ -250,6 +255,16 @@ class AudioLibraryViewModel(
                 // Ошибка уже отражена в localLlmModelManager.status.
             }
         }
+    }
+
+    fun saveLlmPrompt(prompt: String) {
+        LlmPromptStore.save(getApplication(), prompt)
+        _state.update { it.copy(llmPrompt = LlmPromptStore.load(getApplication())) }
+    }
+
+    fun resetLlmPrompt() {
+        LlmPromptStore.reset(getApplication())
+        _state.update { it.copy(llmPrompt = LlmPromptStore.DEFAULT_PROMPT) }
     }
 
     fun refreshModelStatus() {

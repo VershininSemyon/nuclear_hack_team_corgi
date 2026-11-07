@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.editor
 
+import com.example.baseapp.i18n.tr
+
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -60,7 +62,7 @@ class TranscriptEditorViewModel(
 
     private val transcriptId: Long =
         checkNotNull(savedStateHandle.get<Long>(ARG_ID)) {
-            "Не передан id расшифровки"
+            tr("Не передан id расшифровки", "Transcript id was not provided")
         }
 
     private val _state = MutableStateFlow(
@@ -156,7 +158,7 @@ class TranscriptEditorViewModel(
                 _state.update {
                     it.copy(
                         errorMessage = t.message
-                            ?: "Не удалось изменить имя спикера",
+                            ?: tr("Не удалось изменить имя спикера", "Could not change the speaker name"),
                     )
                 }
             }
@@ -180,7 +182,7 @@ class TranscriptEditorViewModel(
                 _state.update {
                     it.copy(
                         errorMessage = t.message
-                            ?: "Не удалось изменить цвет спикера",
+                            ?: tr("Не удалось изменить цвет спикера", "Could not change the speaker color"),
                     )
                 }
             }
@@ -196,7 +198,7 @@ class TranscriptEditorViewModel(
 
         if (snapshot.title.isBlank()) {
             _state.update {
-                it.copy(errorMessage = "Название не может быть пустым")
+                it.copy(errorMessage = tr("Название не может быть пустым", "Title cannot be empty"))
             }
             return
         }
@@ -225,7 +227,7 @@ class TranscriptEditorViewModel(
                         it.copy(
                             isSaving = false,
                             notFound = true,
-                            errorMessage = "Расшифровка не найдена",
+                            errorMessage = tr("Расшифровка не найдена", "Transcript not found"),
                         )
                     }
                     return@launch
@@ -243,7 +245,7 @@ class TranscriptEditorViewModel(
                         updatedAt = System.currentTimeMillis(),
                         hasUnsavedChanges = false,
                         draftRestored = false,
-                        message = "Изменения сохранены",
+                        message = tr("Изменения сохранены", "Changes saved"),
                     )
                 }
             } catch (t: Throwable) {
@@ -251,7 +253,7 @@ class TranscriptEditorViewModel(
                     it.copy(
                         isSaving = false,
                         errorMessage = t.message
-                            ?: "Не удалось сохранить изменения",
+                            ?: tr("Не удалось сохранить изменения", "Could not save changes"),
                     )
                 }
             }
@@ -270,7 +272,7 @@ class TranscriptEditorViewModel(
                 segments = it.savedSegments,
                 hasUnsavedChanges = false,
                 draftRestored = false,
-                message = "Изменения отменены",
+                message = tr("Изменения отменены", "Changes reverted"),
             )
         }
 
@@ -290,14 +292,14 @@ class TranscriptEditorViewModel(
                 _state.update {
                     it.copy(
                         deleted = true,
-                        message = "Расшифровка удалена",
+                        message = tr("Расшифровка удалена", "Transcript deleted"),
                     )
                 }
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(
                         errorMessage = t.message
-                            ?: "Не удалось удалить расшифровку",
+                            ?: tr("Не удалось удалить расшифровку", "Could not delete the transcript"),
                     )
                 }
             }

@@ -166,7 +166,7 @@ class GigaAmTranscriber(
             val answer = model?.let {
                 runCatching {
                     it.generate(
-                        systemPrompt = LLM_SYSTEM_PROMPT,
+                        systemPrompt = LlmPromptStore.load(appContext),
                         userPrompt = raw,
                         maxTokens = maxTokens,
                     )
@@ -207,13 +207,5 @@ class GigaAmTranscriber(
         const val LLM_MODEL_FILE = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
         private const val TAG = "GigaAmTranscriber"
-
-        private const val LLM_SYSTEM_PROMPT = """
-            Ты — редактор расшифровки русской речи. На вход даётся одна реплика.
-            Расставь знаки препинания, заглавные буквы и исправь очевидные ошибки
-            распознавания. Не добавляй новую информацию, не меняй смысл и не
-            пересказывай. Верни ТОЛЬКО исправленный текст реплики, без кавычек,
-            пояснений и markdown.
-        """
     }
 }

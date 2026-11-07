@@ -1,5 +1,7 @@
 package com.example.baseapp.ui
 
+import com.example.baseapp.i18n.tr
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
@@ -48,6 +51,7 @@ fun ModelStatusCard(
     onRetry: () -> Unit,
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = when (status) {
                 is ModelStatus.Installed -> MaterialTheme.colorScheme.secondaryContainer
@@ -57,32 +61,38 @@ fun ModelStatusCard(
             },
         ),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "GigaAM v3",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "GigaAM v3",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
 
             when (status) {
                 is ModelStatus.Installed -> {
                     Text(
-                        text = "Готова",
+                        text = tr("Готова", "Ready"),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
 
                 is ModelStatus.Missing -> {
                     Text(
-                        text = "Скачайте модель (~160 МБ).",
+                        text = tr("Скачайте модель (~160 МБ).", "Download the model (~160 MB)."),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onInstall) { Text("Скачать") }
+                        Button(onClick = onInstall) { Text(tr("Скачать", "Download")) }
                         OutlinedButton(onClick = onPickArchive) {
-                            Text("Из файла")
+                            Text(tr("Из файла", "From file"))
                         }
                     }
                 }
@@ -90,8 +100,8 @@ fun ModelStatusCard(
                 is ModelStatus.Working -> {
                     Text(
                         text = when (status.stage) {
-                            ModelStage.DOWNLOADING -> "Скачивание модели..."
-                            ModelStage.EXTRACTING -> "Распаковка модели..."
+                            ModelStage.DOWNLOADING -> tr("Скачивание модели...", "Downloading model...")
+                            ModelStage.EXTRACTING -> tr("Распаковка модели...", "Extracting model...")
                         },
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -119,13 +129,21 @@ fun ModelStatusCard(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onRetry) { Text("Повторить") }
+                        Button(onClick = onRetry) { Text(tr("Повторить", "Retry")) }
                         OutlinedButton(onClick = onPickArchive) {
-                            Text("Из файла")
+                            Text(tr("Из файла", "From file"))
                         }
                     }
                 }
             }
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            StatusDot(
+                ready = status is ModelStatus.Installed,
+                working = status is ModelStatus.Working,
+            )
         }
     }
 }
@@ -151,7 +169,7 @@ fun AudioSourceCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Аудио",
+                    text = tr("Аудио", "Audio"),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 if (isRecording) {
@@ -167,8 +185,8 @@ fun AudioSourceCard(
 
             if (audio == null) {
                 Text(
-                    text = "Загрузите аудиофайл или запишите разговор с микрофона. " +
-                        "Поддерживаются WAV, MP3 и MP4.",
+                    text = tr("Загрузите аудиофайл или запишите разговор с микрофона. ", "Load an audio file or record a conversation. ") +
+                        tr("Поддерживаются WAV, MP3 и MP4.", "WAV, MP3 and MP4 are supported."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -188,7 +206,7 @@ fun AudioSourceCard(
                             if (audio.durationMs > 0) {
                                 formatDuration(audio.durationMs)
                             } else {
-                                "длительность неизвестна"
+                                tr("длительность неизвестна", "unknown duration")
                             },
                         )
                         append(" · ")
@@ -202,7 +220,7 @@ fun AudioSourceCard(
                     onClick = onClear,
                     enabled = !isRecording && !isStartingRecording && !isTranscribing,
                 ) {
-                    Text("Очистить выбор")
+                    Text(tr("Очистить выбор", "Clear selection"))
                 }
             }
 
@@ -220,7 +238,7 @@ fun AudioSourceCard(
                         !isTranscribing &&
                         !isImporting,
                 ) {
-                    Text(if (isImporting) "Загрузка..." else "Загрузить")
+                    Text(if (isImporting) tr("Загрузка...", "Loading...") else tr("Загрузить", "Load"))
                 }
 
                 Button(
@@ -238,9 +256,9 @@ fun AudioSourceCard(
                 ) {
                     Text(
                         when {
-                            isStartingRecording -> "Запуск..."
-                            isRecording -> "Стоп"
-                            else -> "Записать"
+                            isStartingRecording -> tr("Запуск...", "Starting...")
+                            isRecording -> tr("Стоп", "Stop")
+                            else -> tr("Записать", "Record")
                         },
                     )
                 }
@@ -255,7 +273,7 @@ fun TranscriptionProgressCard(progress: Float) {
     Card {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Распознавание...",
+                text = tr("Распознавание...", "Recognizing..."),
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -299,7 +317,7 @@ fun ResultSummaryCard(result: TranscriptionResult) {
     Card {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Результат",
+                text = tr("Результат", "Result"),
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -307,9 +325,9 @@ fun ResultSummaryCard(result: TranscriptionResult) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
             ) {
-                StatItem("Реплик", result.segments.size.toString())
-                StatItem("Спикеров", speakers.size.toString())
-                StatItem("Слов", result.words.size.toString())
+                StatItem(tr("Реплик", "Utterances"), result.segments.size.toString())
+                StatItem(tr("Спикеров", "Speakers"), speakers.size.toString())
+                StatItem(tr("Слов", "Words"), result.words.size.toString())
             }
         }
     }
@@ -343,7 +361,7 @@ fun FullTextCard(text: String) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Полный текст",
+                    text = tr("Полный текст", "Full text"),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 TextButton(
@@ -351,12 +369,12 @@ fun FullTextCard(text: String) {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
                             as ClipboardManager
                         clipboard.setPrimaryClip(
-                            ClipData.newPlainText("Расшифровка", text),
+                            ClipData.newPlainText(tr("Расшифровка", "Transcript"), text),
                         )
-                        Toast.makeText(context, "Текст скопирован", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, tr("Текст скопирован", "Text copied"), Toast.LENGTH_SHORT).show()
                     },
                 ) {
-                    Text("Копировать")
+                    Text(tr("Копировать", "Copy"))
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -481,18 +499,18 @@ fun SaveTranscriptCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = if (savedTranscriptId == null) {
-                    "Сохранить расшифровку"
+                    tr("Сохранить расшифровку", "Save transcript")
                 } else {
-                    "Расшифровка сохранена"
+                    tr("Расшифровка сохранена", "Transcript saved")
                 },
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Текст, слова, таймкоды и реплики будут сохранены " +
-                    "локально. Исходный результат ASR останется неизменным " +
-                    "после ручного редактирования.",
+                text = tr("Текст, слова, таймкоды и реплики будут сохранены ", "Text, words, timestamps and utterances will be saved ") +
+                    tr("локально. Исходный результат ASR останется неизменным ", "locally. The original ASR result stays unchanged ") +
+                    tr("после ручного редактирования.", "after manual editing."),
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -502,14 +520,14 @@ fun SaveTranscriptCard(
                     enabled = !isSaving,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (isSaving) "Сохранение..." else "Сохранить расшифровку")
+                    Text(if (isSaving) tr("Сохранение...", "Saving...") else tr("Сохранить расшифровку", "Save transcript"))
                 }
             } else {
                 Button(
                     onClick = { onOpenEditor(savedTranscriptId) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Открыть в редакторе")
+                    Text(tr("Открыть в редакторе", "Open in editor"))
                 }
             }
         }
@@ -524,9 +542,9 @@ fun TimestampDisclaimer() {
         ),
     ) {
         Text(
-            text = "Текст изменён вручную. Таймкоды ниже относятся к исходному " +
-                "результату распознавания и не гарантированно совпадают с " +
-                "исправленным текстом.",
+            text = tr("Текст изменён вручную. Таймкоды ниже относятся к исходному ", "Text was edited manually. The timestamps below refer to the original ") +
+                tr("результату распознавания и не гарантированно совпадают с ", "recognition result and may not match the ") +
+                tr("исправленным текстом.", "edited text."),
             modifier = Modifier.padding(16.dp),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -548,13 +566,13 @@ fun EmptyStateCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Пока нет расшифровки",
+                text = tr("Пока нет расшифровки", "No transcript yet"),
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Загрузите аудиофайл или запишите разговор, " +
-                    "затем нажмите «Распознать».",
+                text = tr("Загрузите аудиофайл или запишите разговор, ", "Load an audio file or record a conversation, ") +
+                    tr("затем нажмите «Распознать».", "then tap Recognize."),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -581,11 +599,11 @@ fun formatTimestamp(ms: Long): String {
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes >= 1024L * 1024L ->
-            String.format(Locale.US, "%.1f МБ", bytes / 1024.0 / 1024.0)
+            String.format(Locale.US, tr("%.1f МБ", "%.1f MB"), bytes / 1024.0 / 1024.0)
 
         bytes >= 1024L ->
-            String.format(Locale.US, "%.1f КБ", bytes / 1024.0)
+            String.format(Locale.US, tr("%.1f КБ", "%.1f KB"), bytes / 1024.0)
 
-        else -> "$bytes Б"
+        else -> tr("$bytes Б", "$bytes B")
     }
 }

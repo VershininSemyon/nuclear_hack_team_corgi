@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.library
 
+import com.example.baseapp.i18n.tr
+
 import android.Manifest
 import android.app.Application
 import android.content.Context
@@ -29,6 +31,8 @@ import com.example.baseapp.ui.ModelStatusCard
 import java.io.File
 import com.example.baseapp.ui.DiarizationModelCard
 import com.example.baseapp.ui.LocalLlmModelCard
+import com.example.baseapp.ui.LlmPromptCard
+import com.example.baseapp.ui.LanguageSwitch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,7 +109,10 @@ fun AudioLibraryScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Мои аудиозаписи")
+                    Text(tr("Мои аудиозаписи", "My recordings"))
+                },
+                actions = {
+                    LanguageSwitch()
                 },
             )
         },
@@ -149,6 +156,14 @@ fun AudioLibraryScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            LlmPromptCard(
+                prompt = state.llmPrompt,
+                onSave = viewModel::saveLlmPrompt,
+                onReset = viewModel::resetLlmPrompt,
+            )
+
+            Spacer(Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,7 +177,7 @@ fun AudioLibraryScreen(
                         !state.isStartingRecording,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(if (state.isImporting) "Импорт..." else "Импорт")
+                    Text(if (state.isImporting) tr("Импорт...", "Importing...") else tr("Импорт", "Import"))
                 }
 
                 Button(
@@ -179,9 +194,9 @@ fun AudioLibraryScreen(
                 ) {
                     Text(
                         when {
-                            state.isStartingRecording -> "Запуск..."
-                            state.isRecording -> "Стоп"
-                            else -> "Запись"
+                            state.isStartingRecording -> tr("Запуск...", "Starting...")
+                            state.isRecording -> tr("Стоп", "Stop")
+                            else -> tr("Запись", "Record")
                         },
                     )
                 }
@@ -189,7 +204,7 @@ fun AudioLibraryScreen(
 
             if (state.isRecording) {
                 Text(
-                    text = "Идёт запись...",
+                    text = tr("Идёт запись...", "Recording..."),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
@@ -221,7 +236,7 @@ fun AudioLibraryScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Пока пусто",
+                        text = tr("Пока пусто", "Nothing here yet"),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
@@ -250,7 +265,7 @@ fun AudioLibraryScreen(
 
                                     val file = File(audio.filePath)
                                     check(file.exists()) {
-                                        "Файл аудио не найден"
+                                        tr("Файл аудио не найден", "Audio file not found")
                                     }
 
                                     val newPlayer = MediaPlayer()
@@ -272,7 +287,7 @@ fun AudioLibraryScreen(
                                     newPlayer.prepareAsync()
                                 } catch (t: Throwable) {
                                     playbackError = t.message
-                                        ?: "Не удалось воспроизвести файл"
+                                        ?: tr("Не удалось воспроизвести файл", "Could not play the file")
 
                                     player?.release()
                                     player = null
@@ -297,7 +312,7 @@ fun AudioLibraryScreen(
                 playbackError = null
             },
             title = {
-                Text("Ошибка воспроизведения")
+                Text(tr("Ошибка воспроизведения", "Playback error"))
             },
             text = {
                 Text(message)
@@ -308,7 +323,7 @@ fun AudioLibraryScreen(
                         playbackError = null
                     },
                 ) {
-                    Text("Закрыть")
+                    Text(tr("Закрыть", "Close"))
                 }
             },
         )
@@ -348,7 +363,7 @@ private fun AudioItem(
 
                 Text(
                     text = "$extension · ${
-                        if (exists) "На устройстве" else "Файл не найден"
+                        if (exists) tr("На устройстве", "On device") else tr("Файл не найден", "File not found")
                     }",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -361,7 +376,7 @@ private fun AudioItem(
                 },
                 enabled = exists,
             ) {
-                Text(if (isPlaying) "Стоп" else "▶")
+                Text(if (isPlaying) tr("Стоп", "Stop") else "▶")
             }
         }
     }

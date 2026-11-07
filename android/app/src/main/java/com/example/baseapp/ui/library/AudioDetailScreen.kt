@@ -1,6 +1,8 @@
 
 package com.example.baseapp.ui.library
 
+import com.example.baseapp.i18n.tr
+
 import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -77,7 +79,7 @@ fun AudioDetailScreen(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         ),
                     ) {
-                        Text("Назад")
+                        Text(tr("Назад", "Back"))
                     }
                 },
                 actions = {
@@ -89,7 +91,7 @@ fun AudioDetailScreen(
                         enabled = !isDeleting,
                     ) {
                         Text(
-                            "Удалить",
+                            tr("Удалить", "Delete"),
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -97,7 +99,7 @@ fun AudioDetailScreen(
                     Spacer(Modifier.width(10.dp))
 
                     Text(
-                        text = "Аудиозапись",
+                        text = tr("Аудиозапись", "Recording"),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(end = 12.dp),
                     )
@@ -113,7 +115,7 @@ fun AudioDetailScreen(
                         .padding(padding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("Аудиозапись не найдена")
+                    Text(tr("Аудиозапись не найдена", "Recording not found"))
                 }
             }
 
@@ -128,7 +130,7 @@ fun AudioDetailScreen(
                         value = title,
                         onValueChange = { title = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Название") },
+                        label = { Text(tr("Название", "Title")) },
                         singleLine = true,
                         enabled = !isSaving && !isDeleting,
                     )
@@ -169,29 +171,29 @@ fun AudioDetailScreen(
                             when {
                                 transcripts.isNotEmpty() ||
                                     recognitionState.isAlreadyTranscribed ->
-                                    "Аудио уже расшифровано"
+                                    tr("Аудио уже расшифровано", "Audio already transcribed")
 
                                 recognitionState.isCheckingExisting ->
-                                    "Проверка расшифровки..."
+                                    tr("Проверка расшифровки...", "Checking transcript...")
 
                                 recognitionState.isTranscribing ->
-                                    "Распознавание..."
+                                    tr("Распознавание...", "Recognizing...")
 
                                 recognitionState.isSaving ->
-                                    "Сохранение расшифровки..."
+                                    tr("Сохранение расшифровки...", "Saving transcript...")
 
                                 recognitionState.isCompleted ->
-                                    "Расшифровка готова"
+                                    tr("Расшифровка готова", "Transcript ready")
 
-                                else -> "Распознать"
+                                else -> tr("Распознать", "Recognize")
                             },
                         )
                     }
 
                     if (recognitionState.modelStatus !is ModelStatus.Installed) {
                         Text(
-                            text = "Для распознавания установите модель GigaAM v3 " +
-                                "на экране «Расшифровка диалога».",
+                            text = tr("Для распознавания установите модель GigaAM v3 ", "To recognize speech, install the GigaAM v3 model ") +
+                                tr("на экране «Расшифровка диалога».", "on the Transcribe dialogue screen."),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 6.dp),
@@ -241,13 +243,13 @@ fun AudioDetailScreen(
                                     }
 
                                     if (success) {
-                                        message = "Изменения сохранены"
+                                        message = tr("Изменения сохранены", "Changes saved")
                                     } else {
-                                        errorMessage = "Аудиозапись не найдена"
+                                        errorMessage = tr("Аудиозапись не найдена", "Recording not found")
                                     }
                                 } catch (t: Throwable) {
                                     errorMessage = t.message
-                                        ?: "Не удалось сохранить изменения"
+                                        ?: tr("Не удалось сохранить изменения", "Could not save changes")
                                 } finally {
                                     isSaving = false
                                 }
@@ -260,9 +262,9 @@ fun AudioDetailScreen(
                     ) {
                         Text(
                             if (isSaving) {
-                                "Сохранение..."
+                                tr("Сохранение...", "Saving...")
                             } else {
-                                "Сохранить изменения"
+                                tr("Сохранить изменения", "Save changes")
                             },
                         )
                     }
@@ -286,7 +288,7 @@ fun AudioDetailScreen(
                     Spacer(Modifier.height(20.dp))
 
                     Text(
-                        text = "Расшифровки (${transcripts.size})",
+                        text = tr("Расшифровки (${transcripts.size})", "Transcripts (${transcripts.size})"),
                         style = MaterialTheme.typography.titleLarge,
                     )
 
@@ -300,7 +302,7 @@ fun AudioDetailScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                "Для этой аудиозаписи пока нет расшифровок",
+                                tr("Для этой аудиозаписи пока нет расшифровок", "No transcripts for this recording yet"),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
@@ -330,12 +332,12 @@ fun AudioDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Удалить аудиозапись?") },
+            title = { Text(tr("Удалить аудиозапись?", "Delete recording?")) },
             text = {
                 Text(
-                    "Аудиозапись и все связанные с ней расшифровки " +
-                        "будут удалены из локальной библиотеки. " +
-                        "Действие нельзя отменить.",
+                    tr("Аудиозапись и все связанные с ней расшифровки ", "The recording and all related transcripts ") +
+                        tr("будут удалены из локальной библиотеки. ", "will be deleted from the local library. ") +
+                        tr("Действие нельзя отменить.", "This cannot be undone."),
                 )
             },
             confirmButton = {
@@ -355,18 +357,18 @@ fun AudioDetailScreen(
                                     onBack()
                                 } else {
                                     isDeleting = false
-                                    errorMessage = "Аудиозапись не найдена"
+                                    errorMessage = tr("Аудиозапись не найдена", "Recording not found")
                                 }
                             } catch (t: Throwable) {
                                 isDeleting = false
                                 errorMessage = t.message
-                                    ?: "Не удалось удалить аудиозапись"
+                                    ?: tr("Не удалось удалить аудиозапись", "Could not delete the recording")
                             }
                         }
                     },
                 ) {
                     Text(
-                        "Удалить",
+                        tr("Удалить", "Delete"),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -375,7 +377,7 @@ fun AudioDetailScreen(
                 TextButton(
                     onClick = { showDeleteDialog = false },
                 ) {
-                    Text("Отмена")
+                    Text(tr("Отмена", "Cancel"))
                 }
             },
         )
@@ -404,7 +406,7 @@ private fun AudioTranscriptItem(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                text = transcript.snippet.ifBlank { "Текст отсутствует" },
+                text = transcript.snippet.ifBlank { tr("Текст отсутствует", "No text") },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -415,15 +417,15 @@ private fun AudioTranscriptItem(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    "Спикеров: ${transcript.speakersCount}",
+                    tr("Спикеров: ${transcript.speakersCount}", "Speakers: ${transcript.speakersCount}"),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 Text(
-                    "Слов: ${transcript.wordsCount}",
+                    tr("Слов: ${transcript.wordsCount}", "Words: ${transcript.wordsCount}"),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 Text(
-                    "Фраз: ${transcript.phrasesCount}",
+                    tr("Фраз: ${transcript.phrasesCount}", "Phrases: ${transcript.phrasesCount}"),
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
@@ -431,7 +433,7 @@ private fun AudioTranscriptItem(
             if (transcript.isEdited) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Изменена вручную",
+                    tr("Изменена вручную", "Edited manually"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
