@@ -308,9 +308,9 @@ fun TranscriptEditorScreen(
 
                         OutlinedButton(
                             onClick = { showTimestamps = true },
-                            enabled = state.words.isNotEmpty(),
+                            enabled = state.segments.isNotEmpty(),
                         ) {
-                            Text("Таймкоды (${state.words.size})")
+                            Text("Реплики (${state.segments.size})")
                         }
                     }
 
@@ -475,7 +475,7 @@ fun TranscriptEditorScreen(
     if (showTimestamps) {
         AlertDialog(
             onDismissRequest = { showTimestamps = false },
-            title = { Text("Слова и таймкоды") },
+            title = { Text("Реплики и таймкоды") },
             text = {
                 Column(
                     modifier = Modifier
@@ -491,25 +491,39 @@ fun TranscriptEditorScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    state.words.forEach { word ->
-                        Row(
+                    state.segments.forEach { segment ->
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                                .padding(vertical = 8.dp),
                         ) {
-                            Text(
-                                text = word.word,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = segment.speaker,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
+                                )
 
-                            Text(
-                                text = "${formatTimestamp(word.startMs)} → " +
-                                    formatTimestamp(word.endMs),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                                Text(
+                                    text = "${formatTimestamp(segment.startMs)} → " +
+                                        formatTimestamp(segment.endMs),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            SelectionContainer {
+                                Text(
+                                    text = segment.text,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
                         }
 
                         HorizontalDivider(
