@@ -2,13 +2,11 @@
 package com.example.baseapp.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.baseapp.BaseApp
 import com.example.baseapp.ui.editor.TranscriptEditorScreen
 import com.example.baseapp.ui.library.AudioDetailScreen
 import com.example.baseapp.ui.library.AudioLibraryScreen
@@ -25,8 +23,6 @@ object Routes {
 
 @Composable
 fun AppNavHost() {
-    val app = LocalContext.current.applicationContext as BaseApp
-    val container = app.container
     val navController = rememberNavController()
 
     NavHost(
