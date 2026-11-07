@@ -2,7 +2,7 @@
 
 | Файл | Что это |
 |---|---|
-| [`app-debug.apk`](app-debug.apk) | Готовый debug APK (~98 МБ), minSdk 24, `arm64-v8a` + `x86_64` |
+| [`demo/app-debug.apk`](demo/app-debug.apk) | Готовый debug APK (~98 МБ), minSdk 24, `arm64-v8a` + `x86_64` |
 | [`hackathon_defense.pptx`](hackathon_defense.pptx) | Презентация защиты, 12 слайдов на 5 минут |
 | `video.md` | Ссылка на видеодемонстрацию (заполнить перед сдачей) |
 
