@@ -27,6 +27,7 @@ import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.ui.ModelStatusCard
 import java.io.File
+import com.example.baseapp.ui.DiarizationModelCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +43,7 @@ fun AudioLibraryScreen(
             application = application,
             repository = container.audioRepository,
             modelManager = container.modelManager,
+            diarizationModelManager = container.diarizationModelManager,
         ),
     )
 
@@ -124,6 +126,14 @@ fun AudioLibraryScreen(
                         ),
                     )
                 },
+                onRetry = viewModel::refreshModelStatus,
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            DiarizationModelCard(
+                status = state.diarizationStatus,
+                onInstall = viewModel::installDiarizationModels,
                 onRetry = viewModel::refreshModelStatus,
             )
 

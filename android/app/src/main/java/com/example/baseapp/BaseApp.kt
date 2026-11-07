@@ -7,6 +7,7 @@ import com.example.baseapp.data.TranscriptDraftStore
 import com.example.baseapp.data.TranscriptRepository
 import com.example.baseapp.data.db.AppDatabase
 import com.example.baseapp.data.repository.AudioRepository
+import com.example.baseapp.transcriber.model.DiarizationModelManager
 import com.example.baseapp.transcriber.model.GigaAmModelManager
 
 class AppContainer(context: Context) {
@@ -27,6 +28,10 @@ class AppContainer(context: Context) {
 
     val modelManager: GigaAmModelManager by lazy {
         GigaAmModelManager(appContext)
+    }
+
+    val diarizationModelManager: DiarizationModelManager by lazy {
+        DiarizationModelManager(appContext)
     }
 
     val draftStore: TranscriptDraftStore by lazy {
