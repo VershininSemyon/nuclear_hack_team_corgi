@@ -4,7 +4,7 @@
 |---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | слои приложения, пайплайн, применяемые модели |
 | [`PROTOCOL.md`](PROTOCOL.md) | датасеты, выборки, формулы DER/WER/K/RTF, воспроизведение |
-| [`LIMITATIONS.md`](LIMITATIONS.md) | честные ограничения: auto-K, перекрытия, данные, LLM, ABI |
+| [`LIMITATIONS.md`](LIMITATIONS.md) | честные ограничения: auto-K, перекрытия, данные, модели, ABI |
 | [`TEST_RESULTS.md`](TEST_RESULTS.md) | 156 тестов, APK, метрики ASR/диаризации/Dialogs |
 | [`hackathon_defense.pptx`](hackathon_defense.pptx) | презентация защиты на 5 минут |
 

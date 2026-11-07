@@ -3,7 +3,7 @@
 Два локальных пайплайна для Android/Kotlin, без облака и без GPU:
 
 - [`transcription/`](transcription/) — русский ASR: текст и тайминги слов,
-  опциональная пунктуация локальной LLM.
+  пунктуация и регистр от локальной LLM.
 - [`diarization/`](diarization/) — «кто когда говорил»: 12 speaker-embedding
   моделей, автоопределение числа спикеров, назначение спикера каждому слову.
 
@@ -32,7 +32,7 @@
            │                                                   │
            ▼                                                   │
 ┌──────────────────────┐   ┌────────────────────┐              │
-│ LocalLlm (опция)     │──▶│ DiarizedTranscript  │◀─────────────┘
+│ LocalLlm             │──▶│ DiarizedTranscript  │◀─────────────┘
 │ пунктуация/правка    │   │ toJson()            │
 └──────────────────────┘   └────────────────────┘
 ```
@@ -44,7 +44,7 @@
 | `Diarizer` | pyannote segmentation + speaker embedding + кластеризация → сегменты | `diarization/kotlin/diarizers/` |
 | `WordSpeakerAssigner` | слову — спикер по перекрытию/ближайшему сегменту | `diarization/kotlin/diarizers/` |
 | `UtteranceBuilder` | слова → реплики с `speaker_id`, `start_ms`, `end_ms` | `diarization/kotlin/diarizers/` |
-| `LocalLlm` | опциональная правка каждой реплики, fallback на сырой текст | `transcription/kotlin/transcribers/` |
+| `LocalLlm` | правка каждой реплики локальной LLM (пунктуация, регистр) | `transcription/kotlin/transcribers/` |
 | `DiarizedTranscriber` | сквозной оркестратор, отдаёт точный JSON | `diarization/kotlin/diarizers/` |
 
 Ключевое решение: **диаризация не переписывает ASR**. Сначала работает
@@ -171,7 +171,7 @@ val transcriber = DiarizedTranscriber(
         segmentationModel = File(segDir, "model.int8.onnx"),
         estimateSpeakerCount = true,
     ),
-    llm = LlamaCppLocalLlm.load(File(filesDir, "models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf")), // опция
+    llm = LlamaCppLocalLlm.load(File(filesDir, "models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf")), // локальная LLM
 )
 val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
 ```
@@ -290,7 +290,7 @@ ASR (пример для GigaAM v3):
 cd transcription
 python scripts/download.py
 python scripts/download_parakeet.py          # опционально
-python scripts/download_llm.py --model qwen2.5-1.5b   # опционально, пунктуация
+python scripts/download_llm.py --model qwen2.5-1.5b   # локальная LLM, пунктуация
 ```
 
 Диаризация:
