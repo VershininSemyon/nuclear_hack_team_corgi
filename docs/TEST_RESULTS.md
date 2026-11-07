@@ -9,11 +9,11 @@
 |---|---|---|
 | ASR (JVM) | `transcription/kotlin/transcribers/run_unit_tests.ps1` | **71/71 OK** |
 | Диаризация (JVM) | `diarization/kotlin/diarizers/run_unit_tests.ps1` | **25/25 OK** |
-| Android app (JVM) | `android/gradlew testDebugUnitTest` | **60/60 OK** |
+| Android app (JVM) | `android/gradlew testDebugUnitTest` | **63/63 OK** |
 | Сборка APK | `android/gradlew assembleDebug` | **BUILD SUCCESSFUL** |
 | Instrumentation | `connectedDebugAndroidTest` | **не запускались**: нет `adb`/эмулятора |
 
-Итого: **156 JVM-тестов**, 0 падений.
+Итого: **159 JVM-тестов**, 0 падений.
 
 ### Что покрывают Android-тесты
 
@@ -33,7 +33,7 @@
 ```text
 path: artifacts/demo/app-debug.apk
 size: 97 910 026 bytes (~93.4 MiB)
-sha256: C5E975062436F0B13F52EFCF93EC27ABF51D5B4E6FB3FD6A660FC92DEAB763D1
+sha256: 5E10CB58F48C7BFF5F4B2A3F7E11CA62CCA080B4C18A2D4BCECFE63B90959C1A
 minSdk: 24
 ABI: arm64-v8a, x86_64
 ```

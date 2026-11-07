@@ -14,6 +14,8 @@ import com.example.baseapp.data.repository.AudioRepository
 import com.example.baseapp.transcriber.model.DiarizationModelManager
 import com.example.baseapp.transcriber.model.DiarizationModelStatus
 import com.example.baseapp.transcriber.model.GigaAmModelManager
+import com.example.baseapp.transcriber.model.LocalLlmModelManager
+import com.example.baseapp.transcriber.model.LocalLlmModelStatus
 import com.example.baseapp.transcriber.model.ModelStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +35,7 @@ data class AudioLibraryUiState(
     val message: String? = null,
     val modelStatus: ModelStatus,
     val diarizationStatus: DiarizationModelStatus,
+    val localLlmStatus: LocalLlmModelStatus,
 )
 
 class AudioLibraryViewModel(
@@ -40,6 +43,7 @@ class AudioLibraryViewModel(
     private val repository: AudioRepository,
     private val modelManager: GigaAmModelManager,
     private val diarizationModelManager: DiarizationModelManager,
+    private val localLlmModelManager: LocalLlmModelManager,
 ) : AndroidViewModel(application) {
 
     private val recorder = WavRecorder(application)
@@ -54,6 +58,7 @@ class AudioLibraryViewModel(
         AudioLibraryUiState(
             modelStatus = modelManager.status.value,
             diarizationStatus = diarizationModelManager.status.value,
+            localLlmStatus = localLlmModelManager.status.value,
         ),
     )
 
@@ -72,6 +77,14 @@ class AudioLibraryViewModel(
             diarizationModelManager.status.collect { status ->
                 _state.update {
                     it.copy(diarizationStatus = status)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            localLlmModelManager.status.collect { status ->
+                _state.update {
+                    it.copy(localLlmStatus = status)
                 }
             }
         }
@@ -225,9 +238,24 @@ class AudioLibraryViewModel(
         }
     }
 
+    fun installLocalLlm() {
+        if (_state.value.localLlmStatus is LocalLlmModelStatus.Working) {
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                localLlmModelManager.install()
+            } catch (_: Throwable) {
+                // Ошибка уже отражена в localLlmModelManager.status.
+            }
+        }
+    }
+
     fun refreshModelStatus() {
         modelManager.refresh()
         diarizationModelManager.refresh()
+        localLlmModelManager.refresh()
     }
 
     fun dismissMessage() {
@@ -249,6 +277,7 @@ class AudioLibraryViewModel(
             repository: AudioRepository,
             modelManager: GigaAmModelManager,
             diarizationModelManager: DiarizationModelManager,
+            localLlmModelManager: LocalLlmModelManager,
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
 
@@ -261,6 +290,7 @@ class AudioLibraryViewModel(
                         repository = repository,
                         modelManager = modelManager,
                         diarizationModelManager = diarizationModelManager,
+                        localLlmModelManager = localLlmModelManager,
                     ) as T
                 }
             }

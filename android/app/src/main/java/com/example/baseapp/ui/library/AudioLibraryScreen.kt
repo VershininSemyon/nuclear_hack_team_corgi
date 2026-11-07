@@ -28,6 +28,7 @@ import com.example.baseapp.data.db.AudioEntity
 import com.example.baseapp.ui.ModelStatusCard
 import java.io.File
 import com.example.baseapp.ui.DiarizationModelCard
+import com.example.baseapp.ui.LocalLlmModelCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +45,7 @@ fun AudioLibraryScreen(
             repository = container.audioRepository,
             modelManager = container.modelManager,
             diarizationModelManager = container.diarizationModelManager,
+            localLlmModelManager = container.localLlmModelManager,
         ),
     )
 
@@ -139,6 +141,14 @@ fun AudioLibraryScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            LocalLlmModelCard(
+                status = state.localLlmStatus,
+                onInstall = viewModel::installLocalLlm,
+                onRetry = viewModel::refreshModelStatus,
+            )
+
+            Spacer(Modifier.height(12.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -152,9 +162,7 @@ fun AudioLibraryScreen(
                         !state.isStartingRecording,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(
-                        if (state.isImporting) "Импорт..." else "Загрузить аудио",
-                    )
+                    Text(if (state.isImporting) "Импорт..." else "Импорт")
                 }
 
                 Button(
@@ -172,8 +180,8 @@ fun AudioLibraryScreen(
                     Text(
                         when {
                             state.isStartingRecording -> "Запуск..."
-                            state.isRecording -> "Остановить"
-                            else -> "Записать"
+                            state.isRecording -> "Стоп"
+                            else -> "Запись"
                         },
                     )
                 }
@@ -213,8 +221,7 @@ fun AudioLibraryScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Аудиозаписей пока нет.\n" +
-                            "Загрузите файл или сделайте новую запись.",
+                        text = "Пока пусто",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }

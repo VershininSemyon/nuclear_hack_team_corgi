@@ -44,7 +44,7 @@ class GigaAmTranscriber(
     private val numThreads: Int = 4,
     private val llmModelFile: File? = File(
         context.applicationContext.filesDir,
-        "models/$LLM_MODEL_FILE",
+        "models/${com.example.baseapp.transcriber.model.LocalLlmModelFiles.DIR_NAME}/$LLM_MODEL_FILE",
     ),
 ) : Transcriber {
 

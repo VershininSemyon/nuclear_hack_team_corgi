@@ -112,7 +112,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Тесты
 
-JVM-тесты (60) не требуют устройства:
+JVM-тесты (63) не требуют устройства:
 
 `ash
 ./gradlew testDebugUnitTest
@@ -131,30 +131,31 @@ Instrumentation-тесты (декодер, Room, репозиторий, GigaAM
 
 ## Локальная LLM
 
-Приложение автоматически использует **Qwen2.5 1.5B Instruct Q4_K_M** (GGUF),
-если файл лежит по пути:
+Приложение **само скачивает** Qwen2.5 1.5B Instruct Q4_K_M (~1.1 ГБ) при
+первом запуске. Файл устанавливается сюда:
 
 ```text
-/data/data/com.example.baseapp/files/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
+/data/data/com.example.baseapp/files/models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
 
-Скачать модель:
+В библиотеке есть карточка «Локальная LLM»: прогресс, проценты, кнопки
+«Скачать»/«Повторить». Скачивание идёт в `cacheDir`, проверяется размер и
+SHA-256, только потом файл переносится в `filesDir`.
+
+Если сеть недоступна или модель не загрузилась, приложение не падает:
+включается rule-based fallback (заглавные буквы и завершающая точка), а в
+logcat по тегу `GigaAmTranscriber` видна причина.
+
+Ручная установка (опционально):
 
 ```bash
-cd ../transcription
-python scripts/download_llm.py --model qwen2.5-1.5b
-```
-
-Положить на устройство:
-
-```bash
-adb shell run-as com.example.baseapp mkdir -p files/models
+adb shell run-as com.example.baseapp mkdir -p files/models/llm
 adb push qwen2.5-1.5b-instruct-q4_k_m.gguf \
   /data/local/tmp/qwen2.5-1.5b-instruct-q4_k_m.gguf
 adb shell run-as com.example.baseapp cp \
-  /data/local/tmp/qwen2.5-1.5b-instruct-q4_k_m.gguf files/models/
+  /data/local/tmp/qwen2.5-1.5b-instruct-q4_k_m.gguf files/models/llm/
 ```
 
-Если файла нет или модель не загрузилась, приложение работает как раньше:
-текст ASR остаётся без LLM-правки. Модель правит пунктуацию и очевидные
-ошибки распознавания по каждой реплике, не меняя тайминги.
+> Free-сборка `llama-android` содержит только `arm64-v8a`. На x86_64-
+> эмуляторе LLM не загрузится; автоскачивание в этом случае отключается,
+> остаётся rule-based fallback. Для реальной LLM нужен arm64-девайс.

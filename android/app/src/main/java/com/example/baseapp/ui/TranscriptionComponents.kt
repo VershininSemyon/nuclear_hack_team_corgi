@@ -59,7 +59,7 @@ fun ModelStatusCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "GigaAM v3 · локальное распознавание",
+                text = "GigaAM v3",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -68,22 +68,19 @@ fun ModelStatusCard(
             when (status) {
                 is ModelStatus.Installed -> {
                     Text(
-                        text = "Модель установлена. Русская речь распознаётся " +
-                            "на устройстве без отправки аудио в сеть.",
+                        text = "Готова",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
 
                 is ModelStatus.Missing -> {
                     Text(
-                        text = "Модель не установлена. Для распознавания нужно " +
-                            "скачать официальный архив (~160 МБ) и распаковать " +
-                            "его во внутреннее хранилище приложения.",
+                        text = "Скачайте модель (~160 МБ).",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onInstall) { Text("Скачать модель") }
+                        Button(onClick = onInstall) { Text("Скачать") }
                         OutlinedButton(onClick = onPickArchive) {
                             Text("Из файла")
                         }

@@ -140,7 +140,7 @@ oracle-качество; TitaNet small — самый быстрый.
 cd android
 ./gradlew assembleDebug        # APK: app/build/outputs/apk/debug/app-debug.apk
 ./gradlew installDebug         # на подключённое устройство
-./gradlew testDebugUnitTest    # 60 JVM-тестов без эмулятора
+./gradlew testDebugUnitTest    # 63 JVM-теста без эмулятора
 ```
 
 Подробная инструкция по сборке, установке модели и экранам —
@@ -171,7 +171,7 @@ val transcriber = DiarizedTranscriber(
         segmentationModel = File(segDir, "model.int8.onnx"),
         estimateSpeakerCount = true,
     ),
-    llm = LlamaCppLocalLlm.load(File(filesDir, "models/qwen2.5-1.5b-instruct-q4_k_m.gguf")), // опция
+    llm = LlamaCppLocalLlm.load(File(filesDir, "models/llm/qwen2.5-1.5b-instruct-q4_k_m.gguf")), // опция
 )
 val json = transcriber.use { it.transcribeToJson(File("/sdcard/meeting.mp3")) }
 ```
@@ -307,11 +307,15 @@ python scripts/download.py                   # 12 embedding-моделей + с�
 ```
 filesDir/models/
 ├── gigaam-v3/                    # encoder.int8.onnx, decoder.onnx, joiner.onnx, tokens.txt
-├── qwen2.5-1.5b-instruct-q4_k_m.gguf
+├── llm/
+│   └── qwen2.5-1.5b-instruct-q4_k_m.gguf
 └── diarization/
     ├── sherpa-onnx-pyannote-segmentation-3-0/model.int8.onnx
     └── 3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx
 ```
+
+Локальная LLM скачивается приложением автоматически при первом запуске
+(~1.1 ГБ). Остальные модели — по кнопке «Скачать».
 
 `assets` подходит только для небольших моделей; `.onnx` не сжимайте
 (`noCompress`). Для больших файлов используйте `filesDir` или

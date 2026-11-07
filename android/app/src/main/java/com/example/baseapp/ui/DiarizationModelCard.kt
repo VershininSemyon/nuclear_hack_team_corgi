@@ -44,7 +44,7 @@ fun DiarizationModelCard(
             modifier = Modifier.padding(16.dp),
         ) {
             Text(
-                text = "Диаризация · определение спикеров",
+                text = "Диаризация",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -54,31 +54,21 @@ fun DiarizationModelCard(
             when (status) {
                 is DiarizationModelStatus.Installed -> {
                     Text(
-                        text = "Модели диаризации установлены. " +
-                            "Приложение может определять говорящих.",
+                        text = "Готова",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
 
                 is DiarizationModelStatus.Missing -> {
                     Text(
-                        text = "Модели диаризации не установлены. " +
-                            "Скачайте их заранее, чтобы использовать " +
-                            "определение спикеров при распознавании.",
+                        text = "Скачайте модели спикеров.",
                         style = MaterialTheme.typography.bodySmall,
                     )
 
                     Spacer(Modifier.height(8.dp))
 
-                    Text(
-                        text = "Не хватает: ${status.missingFiles.joinToString()}",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
                     Button(onClick = onInstall) {
-                        Text("Скачать модели диаризации")
+                        Text("Скачать")
                     }
                 }
 
