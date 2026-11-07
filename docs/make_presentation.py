@@ -366,7 +366,7 @@ for i, step in enumerate(steps):
     text(slide, step, left, 4.50, 1.55, 0.28, 11, True, WHITE, PP_ALIGN.CENTER)
     if i < len(steps) - 1:
         arrow(slide, left + 1.60, 4.53, 0.35, 0.25)
-text(slide, "Без API-ключей. После загрузки моделей сеть не нужна.", 0.98, 5.45, 11.3, 0.35, 13, False, GRAY)
+text(slide, "Без API-ключей. После загрузки моделей сеть не нужна.", 0.98, 5.42, 11.3, 0.35, 14, False, GRAY)
 footer(slide, 2)
 add_notes(slide, "25 секунд: три боли — приватность, ручные заметки и отсутствие спикеров. Решение — локальный пайплайн до JSON.")
 
@@ -394,7 +394,7 @@ for i, (t, s) in enumerate(items):
     text(slide, "✓", left + 0.15, top + 0.19, 0.52, 0.45, 28, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
     text(slide, t, left + 0.82, top + 0.10, 2.0, 0.3, 15, True, NAVY, font=FONT_BOLD)
     text(slide, s, left + 0.82, top + 0.43, 4.7, 0.3, 10.5, False, GRAY)
-text(slide, "Демо: файл из памяти → расшифровка → редактор спикеров → JSON", 0.65, 6.55, 12.0, 0.3, 13, True, BLUE)
+text(slide, "Демо: файл из памяти → расшифровка → редактор спикеров → JSON", 0.65, 6.55, 12.0, 0.32, 14, True, BLUE)
 footer(slide, 3)
 add_notes(slide, "20 секунд: все восемь обязательных пунктов закрыты. Ключевое — локальная LLM и полный офлайн-пайплайн.")
 
@@ -447,8 +447,8 @@ bullets(
     0.90,
     5.05,
     11.4,
-    0.95,
-    11.5,
+    1.00,
+    14,
     GRAY,
     3,
 )
@@ -550,7 +550,7 @@ for i, (num, head, sub) in enumerate(steps):
     text(slide, sub, left + 0.14, 3.02, 1.92, 0.45, 9.5, False, GRAY)
     if i < len(steps) - 1:
         arrow(slide, left + 2.22, 2.68, 0.22, 0.24)
-card(slide, 0.65, 4.05, 5.85, 1.95, fill=LIGHT_2, line=BLUE, radius=0.10)
+card(slide, 0.65, 4.05, 5.85, 1.80, fill=LIGHT_2, line=BLUE, radius=0.10)
 text(slide, "Gap-статистика (offline)", 0.88, 4.22, 4.0, 0.3, 13, True, NAVY, font=FONT_BOLD)
 bullets(
     slide,
@@ -558,12 +558,12 @@ bullets(
     0.88,
     4.58,
     5.25,
-    1.0,
-    10.5,
+    1.10,
+    14,
     GRAY,
     3,
 )
-card(slide, 6.80, 4.05, 5.85, 1.95, fill=RGBColor(0xFF, 0xF4, 0xE5), line=RGBColor(0xE6, 0x7E, 0x22), radius=0.10)
+card(slide, 6.80, 4.05, 5.85, 1.80, fill=RGBColor(0xFF, 0xF4, 0xE5), line=RGBColor(0xE6, 0x7E, 0x22), radius=0.10)
 text(slide, "Перебор порогов (Android)", 7.03, 4.22, 4.4, 0.3, 13, True, RGBColor(0xB4, 0x5F, 0x06), font=FONT_BOLD)
 bullets(
     slide,
@@ -571,12 +571,12 @@ bullets(
     7.03,
     4.58,
     5.25,
-    1.0,
-    10.5,
+    1.10,
+    14,
     GRAY,
     3,
 )
-text(slide, "Фиксированный порог 0.5 на AMI/Vox даёт K=8–22 — поэтому заменён на auto-K.", 0.65, 6.30, 12.0, 0.3, 11.5, True, RED)
+text(slide, "Фиксированный порог 0.5 на AMI/Vox даёт K=8–22 — поэтому заменён на auto-K.", 0.65, 6.30, 12.0, 0.32, 14, True, RED)
 footer(slide, 7)
 add_notes(slide, "40 секунд: сегментация, чистые окна, эмбеддинги, complete-linkage AHC и auto-K. Порог 0.5 нестабилен.")
 
@@ -591,16 +591,16 @@ for i, (value, label) in enumerate(metrics):
     card(slide, left, 2.25, 1.75, 1.45, fill=LIGHT_2, line=CYAN, radius=0.10)
     text(slide, value, left, 2.42, 1.75, 0.55, 21, True, BLUE, PP_ALIGN.CENTER, FONT_BOLD)
     text(slide, label, left, 3.10, 1.75, 0.3, 9.5, False, GRAY, PP_ALIGN.CENTER)
-card(slide, 0.65, 4.10, 5.40, 1.70, fill=LIGHT, line=BORDER, radius=0.10)
+card(slide, 0.65, 4.10, 5.40, 1.55, fill=LIGHT, line=BORDER, radius=0.10)
 text(slide, "Как считали", 0.88, 4.25, 3.0, 0.3, 14, True, NAVY, font=FONT_BOLD)
 bullets(
     slide,
     ["GigaAM → CAM++ → WordSpeakerAssigner", "Реплики: пауза > 1.2 с, длина > 15 с", "JSON: speaker_id — целое число"],
     0.88,
-    4.58,
+    4.55,
     4.85,
     1.0,
-    10,
+    14,
     GRAY,
     2,
 )
@@ -692,17 +692,17 @@ for i, (value, label, color) in enumerate(metrics):
     card(slide, 8.90, top, 3.85, 0.80, fill=LIGHT, line=BORDER, radius=0.10)
     text(slide, value, 9.02, top + 0.10, 1.55, 0.55, 21, True, color, font=FONT_BOLD)
     text(slide, label, 10.60, top + 0.23, 2.05, 0.35, 10.5, False, GRAY)
-card(slide, 0.55, 5.72, 12.20, 1.12, fill=LIGHT_2, line=CYAN, radius=0.10)
-text(slide, "Вывод", 0.80, 5.87, 1.3, 0.30, 13.5, True, NAVY, font=FONT_BOLD)
+card(slide, 0.55, 5.72, 12.20, 1.00, fill=LIGHT_2, line=CYAN, radius=0.10)
+text(slide, "Вывод", 0.80, 5.93, 1.3, 0.30, 14, True, NAVY, font=FONT_BOLD)
 text(
     slide,
     "Русский → GigaAM v3. Слабые устройства → Zipformer. Auto-K обязателен: "
     "фиксированный порог 0.5 даёт K=8–22 на AMI/Vox.",
     2.05,
-    5.88,
+    5.86,
     10.5,
-    0.80,
-    11.5,
+    0.78,
+    14,
     False,
     GRAY,
 )
@@ -735,7 +735,7 @@ for i, (head, body) in enumerate(limits):
     text(slide, "!", left + 0.14, top + 0.20, 0.46, 0.3, 14, True, WHITE, PP_ALIGN.CENTER, FONT_BOLD)
     text(slide, head, left + 0.75, top + 0.13, 4.9, 0.28, 14, True, NAVY, font=FONT_BOLD)
     text(slide, body, left + 0.75, top + 0.45, 4.9, 0.65, 9.5, False, GRAY)
-text(slide, "Что улучшим: overlap-aware декодер, реальные русские встречи, калибровка auto-K.", 0.65, 6.55, 12.0, 0.3, 11, True, BLUE)
+text(slide, "Что улучшим: overlap-aware декодер, реальные русские встречи, калибровка auto-K.", 0.65, 6.52, 12.0, 0.32, 14, True, BLUE)
 footer(slide, 11)
 add_notes(slide, "25 секунд: честно про auto-K, перекрытия, данные и скорость. Все ограничения описаны в README.")
 

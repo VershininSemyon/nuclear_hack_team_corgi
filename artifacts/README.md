@@ -4,6 +4,7 @@
 |---|---|
 | [`demo/app-debug.apk`](demo/app-debug.apk) | Готовый debug APK (~90 МБ), minSdk 24, `arm64-v8a` + `x86_64` |
 | [`hackathon_defense.pptx`](hackathon_defense.pptx) | Презентация защиты, 12 слайдов на 5 минут |
+| [`hackathon_defense.pdf`](hackathon_defense.pdf) | Та же презентация в PDF — для просмотра без PowerPoint |
 | [`demo/демонстрация.mp4`](demo/демонстрация.mp4) | Видеодемонстрация приложения, 2:51, запись с телефона |
 
 ## APK
