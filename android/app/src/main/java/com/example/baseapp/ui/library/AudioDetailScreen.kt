@@ -71,12 +71,20 @@ fun AudioDetailScreen(
             TopAppBar(
                 title = { Text("Аудиозапись") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
+                    OutlinedButton(
+                        onClick = onBack,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    ) {
                         Text("Назад")
                     }
                 },
                 actions = {
-                    TextButton(
+                    OutlinedButton(
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                         onClick = { showDeleteDialog = true },
                         enabled = !isDeleting,
                     ) {
@@ -146,9 +154,15 @@ fun AudioDetailScreen(
                     ) {
                         Text(
                             when {
-                                recognitionState.isTranscribing -> "Распознавание..."
-                                recognitionState.isSaving -> "Сохранение расшифровки..."
-                                recognitionState.isCompleted -> "Расшифровка готова"
+                                recognitionState.isTranscribing ->
+                                    "Распознавание..."
+
+                                recognitionState.isSaving ->
+                                    "Сохранение расшифровки..."
+
+                                recognitionState.isCompleted ->
+                                    "Расшифровка готова"
+
                                 else -> "Распознать"
                             },
                         )
@@ -220,9 +234,17 @@ fun AudioDetailScreen(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !isSaving && !isDeleting && title.isNotBlank(),
+                        enabled = !isSaving &&
+                            !isDeleting &&
+                            title.isNotBlank(),
                     ) {
-                        Text(if (isSaving) "Сохранение..." else "Сохранить изменения")
+                        Text(
+                            if (isSaving) {
+                                "Сохранение..."
+                            } else {
+                                "Сохранить изменения"
+                            },
+                        )
                     }
 
                     message?.let {

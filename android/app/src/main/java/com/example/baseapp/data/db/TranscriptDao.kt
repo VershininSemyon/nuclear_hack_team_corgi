@@ -76,6 +76,20 @@ abstract class TranscriptDao {
         updatedAt: Long,
     )
 
+    @Query(
+        """
+        UPDATE transcript_segments
+        SET text = :text
+        WHERE transcriptId = :transcriptId
+          AND position = :position
+        """
+    )
+    abstract suspend fun updateSegmentText(
+        transcriptId: Long,
+        position: Int,
+        text: String,
+    )
+
     @Update
     abstract suspend fun update(entity: TranscriptEntity)
 

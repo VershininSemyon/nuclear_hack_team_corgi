@@ -278,6 +278,7 @@ class TranscriptRepository(
         id: Long,
         title: String,
         text: String,
+        segments: List<TranscriptSegment> = emptyList(),
     ): Boolean = database.withTransaction {
         val current = transcriptDao.getById(id)
             ?: return@withTransaction false
@@ -294,6 +295,16 @@ class TranscriptRepository(
             isEdited = text != current.originalText,
             updatedAt = now,
         )
+
+        // Сохраняем текст каждой реплики отдельно.
+        // Исходные таймкоды и позиции не изменяются.
+        segments.forEachIndexed { index, segment ->
+            transcriptDao.updateSegmentText(
+                transcriptId = id,
+                position = index,
+                text = segment.text,
+            )
+        }
 
         audioDao.getById(current.audioLocalId)?.let { audio ->
             audioDao.update(
@@ -349,8 +360,6 @@ class TranscriptRepository(
         val profiles = speakers
             .sortedBy { it.position }
             .map { it.toProfile() }
-
-        val namesById = profiles.associate { it.id to it.name }
 
         val storedWords = words
             .sortedBy { it.position }

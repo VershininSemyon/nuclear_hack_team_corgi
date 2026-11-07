@@ -2,6 +2,10 @@
 package com.example.baseapp.ui.editor
 
 import android.net.Uri
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +30,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,8 +71,6 @@ import com.example.baseapp.ui.TimestampDisclaimer
 import com.example.baseapp.ui.formatDateTime
 import com.example.baseapp.ui.formatTimestamp
 import kotlinx.coroutines.launch
-import androidx.compose.material3.Card
-import com.example.baseapp.ui.editor.TranscriptFormattedText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +97,7 @@ fun TranscriptEditorScreen(
     var showOriginalText by remember { mutableStateOf(false) }
     var showTimestamps by remember { mutableStateOf(false) }
     var showSpeakers by remember { mutableStateOf(false) }
+    var editingSegmentPosition by remember { mutableStateOf<Int?>(null) }
     var exitAfterSave by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -123,7 +127,7 @@ fun TranscriptEditorScreen(
                             (
                                 result.exceptionOrNull()?.localizedMessage
                                     ?: "неизвестная ошибка"
-                            ),
+                                ),
                     )
                 }
             }
@@ -181,7 +185,10 @@ fun TranscriptEditorScreen(
                     Text("Редактор расшифровки")
                 },
                 navigationIcon = {
-                    TextButton(
+                    OutlinedButton(
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
                         onClick = {
                             if (state.hasUnsavedChanges) {
                                 showExitDialog = true
@@ -195,7 +202,10 @@ fun TranscriptEditorScreen(
                 },
                 actions = {
                     if (!state.isLoading && !state.notFound) {
-                        TextButton(
+                        OutlinedButton(
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
                             onClick = {
                                 val fileName = state.title.replace(
                                     Regex("[^a-zA-Zа-яА-Я0-9_-]"),
@@ -210,7 +220,10 @@ fun TranscriptEditorScreen(
                             Text("JSON")
                         }
 
-                        TextButton(
+                        OutlinedButton(
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ),
                             onClick = {
                                 showDeleteDialog = true
                             },
@@ -393,19 +406,10 @@ fun TranscriptEditorScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
-                    OutlinedTextField(
-                        value = state.text,
-                        onValueChange = viewModel::onTextChanged,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        label = {
-                            Text("Редактирование текста")
-                        },
-                        enabled = !state.isSaving,
-                        minLines = 10,
-                        maxLines = Int.MAX_VALUE,
-                    )
+                    // Нижнего поля редактирования текста больше нет.
+                    // Текст меняется непосредственно в окне выбранной реплики.
+
+                    Spacer(modifier = Modifier.weight(1f))
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -586,15 +590,15 @@ fun TranscriptEditorScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
-                        text = "Таймкоды относятся к исходному результату " +
-                            "распознавания.",
+                        text = "Нажмите на текст реплики, чтобы изменить его. " +
+                            "Таймкоды сохраняют исходные временные границы.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    state.segments.forEach { segment ->
+                    state.segments.forEachIndexed { segmentIndex, segment ->
                         val speaker = state.speakers.firstOrNull {
                             it.id == segment.speaker
                         }
@@ -628,11 +632,47 @@ fun TranscriptEditorScreen(
 
                             Spacer(modifier = Modifier.height(4.dp))
 
-                            SelectionContainer {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Text(
                                     text = segment.text,
                                     style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable {
+                                            editingSegmentPosition = segmentIndex
+                                        }
+                                        .padding(vertical = 4.dp),
                                 )
+
+                                TextButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(
+                                            Context.CLIPBOARD_SERVICE,
+                                        ) as ClipboardManager
+
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                "Реплика",
+                                                segment.text,
+                                            ),
+                                        )
+
+                                        Toast.makeText(
+                                            context,
+                                            "Реплика скопирована",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    },
+                                    modifier = Modifier.height(32.dp),
+                                ) {
+                                    Text(
+                                        "⧉",
+                                        style = MaterialTheme.typography.titleSmall,
+                                    )
+                                }
                             }
                         }
 
@@ -652,6 +692,73 @@ fun TranscriptEditorScreen(
                 }
             },
         )
+    }
+
+    // Отдельное окно редактирования выбранной реплики.
+    editingSegmentPosition?.let { position ->
+        val segment = state.segments.getOrNull(position)
+
+        if (segment != null) {
+            var editedText by remember(position, segment.text) {
+                mutableStateOf(segment.text)
+            }
+
+            AlertDialog(
+                onDismissRequest = {
+                    editingSegmentPosition = null
+                },
+                title = {
+                    Text("Редактирование реплики")
+                },
+                text = {
+                    Column {
+                        Text(
+                            "${formatTimestamp(segment.startMs)} → " +
+                                formatTimestamp(segment.endMs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = editedText,
+                            onValueChange = {
+                                editedText = it
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3,
+                            maxLines = 8,
+                            label = {
+                                Text("Текст реплики")
+                            },
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.updateSegmentText(
+                                position,
+                                editedText,
+                            )
+                            editingSegmentPosition = null
+                        },
+                    ) {
+                        Text("Применить")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            editingSegmentPosition = null
+                        },
+                    ) {
+                        Text("Отмена")
+                    }
+                },
+            )
+        }
     }
 
     // Диалог управления профилями спикеров.
