@@ -69,7 +69,7 @@ fun AudioDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Аудиозапись") },
+                title = {},
                 navigationIcon = {
                     OutlinedButton(
                         onClick = onBack,
@@ -93,6 +93,14 @@ fun AudioDetailScreen(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    Text(
+                        text = "Аудиозапись",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
                 },
             )
         },

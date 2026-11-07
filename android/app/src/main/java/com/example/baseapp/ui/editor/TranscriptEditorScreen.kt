@@ -6,9 +6,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,7 +67,7 @@ import com.example.baseapp.ui.formatDateTime
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TranscriptEditorScreen(
     onBack: () -> Unit,
@@ -640,33 +643,55 @@ fun TranscriptEditorScreen(
 
                             Spacer(Modifier.height(6.dp))
 
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                maxItemsInEachRow = 4,
                             ) {
                                 SpeakerColors.palette.forEach { color ->
                                     val selected = speaker.color == color
 
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(38.dp)
                                             .background(
                                                 Color(color),
                                                 CircleShape,
+                                            )
+                                            .then(
+                                                if (selected) {
+                                                    Modifier.border(
+                                                        width = 3.dp,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        shape = CircleShape,
+                                                    )
+                                                } else {
+                                                    Modifier.border(
+                                                        width = 1.dp,
+                                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                                        shape = CircleShape,
+                                                    )
+                                                },
                                             )
                                             .clickable {
                                                 viewModel.changeSpeakerColor(
                                                     speaker.id,
                                                     color,
                                                 )
-                                            }
-                                            .then(
-                                                if (selected) {
-                                                    Modifier.padding(3.dp)
-                                                } else {
-                                                    Modifier
-                                                },
-                                            ),
-                                    )
+                                            },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (selected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.onSurface,
+                                                        CircleShape,
+                                                    ),
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
