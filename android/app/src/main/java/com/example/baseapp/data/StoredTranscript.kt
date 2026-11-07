@@ -1,10 +1,10 @@
+
 package com.example.baseapp.data
 
 import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.transcriber.TranscriptSegment
 import com.example.baseapp.transcriber.WordTimestamp
 
-/** Полная сохранённая расшифровка. */
 data class StoredTranscript(
     val id: Long,
     val title: String,
@@ -17,6 +17,7 @@ data class StoredTranscript(
     val language: String,
     val words: List<WordTimestamp>,
     val segments: List<TranscriptSegment>,
+    val speakers: List<SpeakerProfile>,
     val isEdited: Boolean,
 ) {
     val hasTimestamps: Boolean
@@ -26,7 +27,6 @@ data class StoredTranscript(
         get() = !isEdited && text == originalText
 }
 
-/** Краткая карточка для списка «Мои расшифровки». */
 data class TranscriptSummary(
     val id: Long,
     val title: String,

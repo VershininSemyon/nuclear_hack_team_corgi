@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import com.example.baseapp.audio.AudioFormat
 import com.example.baseapp.data.db.AppDatabase
 import com.example.baseapp.data.db.AudioEntity
+import com.example.baseapp.data.db.SpeakerEntity
 import com.example.baseapp.data.db.TranscriptEntity
 import com.example.baseapp.data.db.TranscriptSegmentEntity
 import com.example.baseapp.data.db.TranscriptWordEntity
@@ -33,6 +34,7 @@ class TranscriptRepository(
 ) {
     private val transcriptDao = database.transcriptDao()
     private val audioDao = database.audioDao()
+    private val speakerDao = database.speakerDao()
 
     val transcripts: Flow<List<TranscriptSummary>> =
         transcriptDao.observeAll().map { entities ->
@@ -42,8 +44,97 @@ class TranscriptRepository(
     fun observe(id: Long): Flow<StoredTranscript?> =
         transcriptDao.observeDetail(id).map { it?.toStored() }
 
-    suspend fun get(id: Long): StoredTranscript? =
-        transcriptDao.getDetail(id)?.toStored()
+    suspend fun get(id: Long): StoredTranscript? {
+        ensureSpeakerProfiles(id)
+        return transcriptDao.getDetail(id)?.toStored()
+    }
+
+    suspend fun getSpeakers(id: Long): List<SpeakerProfile> {
+        ensureSpeakerProfiles(id)
+        return speakerDao.getByTranscriptId(id).map { it.toProfile() }
+    }
+
+    suspend fun updateSpeakerName(
+        transcriptId: Long,
+        speakerId: String,
+        name: String,
+    ) {
+        val cleanName = name.trim()
+        require(cleanName.isNotBlank()) {
+            "Имя спикера не может быть пустым"
+        }
+
+        database.withTransaction {
+            speakerDao.updateName(
+                transcriptId = transcriptId,
+                speakerId = speakerId,
+                name = cleanName,
+            )
+        }
+    }
+
+    suspend fun updateSpeakerColor(
+        transcriptId: Long,
+        speakerId: String,
+        color: Long,
+    ) {
+        database.withTransaction {
+            speakerDao.updateColor(
+                transcriptId = transcriptId,
+                speakerId = speakerId,
+                color = color,
+            )
+        }
+    }
+
+    private suspend fun ensureSpeakerProfiles(transcriptId: Long) {
+        database.withTransaction {
+            val detail = transcriptDao.getDetail(transcriptId)
+                ?: return@withTransaction
+
+            val existing = speakerDao.getByTranscriptId(transcriptId)
+            if (existing.isNotEmpty()) return@withTransaction
+
+            val oldSpeakers = (
+                detail.segments.map { it.speaker } +
+                    detail.words.mapNotNull { it.speaker }
+                )
+                .filter { it.isNotBlank() }
+                .distinct()
+
+            if (oldSpeakers.isEmpty()) return@withTransaction
+
+            val profiles = oldSpeakers.mapIndexed { index, oldName ->
+                val speakerId = oldName.toSpeakerId(index)
+
+                SpeakerEntity(
+                    transcriptId = transcriptId,
+                    speakerId = speakerId,
+                    name = oldName,
+                    color = SpeakerColors.forPosition(index),
+                    position = index,
+                )
+            }
+
+            speakerDao.insertAll(profiles)
+
+            oldSpeakers.forEachIndexed { index, oldName ->
+                val speakerId = profiles[index].speakerId
+
+                transcriptDao.replaceWordSpeaker(
+                    transcriptId = transcriptId,
+                    oldSpeaker = oldName,
+                    speakerId = speakerId,
+                )
+
+                transcriptDao.replaceSegmentSpeaker(
+                    transcriptId = transcriptId,
+                    oldSpeaker = oldName,
+                    speakerId = speakerId,
+                )
+            }
+        }
+    }
 
     fun observeForAudio(
         audioId: Long,
@@ -121,6 +212,31 @@ class TranscriptRepository(
                 ),
             )
 
+            val speakerNames = (
+                result.segments.map { it.speaker } +
+                    result.words.mapNotNull { it.speaker }
+                )
+                .filter { it.isNotBlank() }
+                .distinct()
+
+            val profiles = speakerNames.mapIndexed { index, name ->
+                SpeakerEntity(
+                    transcriptId = transcriptId,
+                    speakerId = name.toSpeakerId(index),
+                    name = name,
+                    color = SpeakerColors.forPosition(index),
+                    position = index,
+                )
+            }
+
+            if (profiles.isNotEmpty()) {
+                speakerDao.insertAll(profiles)
+            }
+
+            val speakerIds = profiles.associate {
+                it.name to it.speakerId
+            }
+
             if (result.words.isNotEmpty()) {
                 transcriptDao.insertWords(
                     result.words.mapIndexed { index, word ->
@@ -130,7 +246,9 @@ class TranscriptRepository(
                             word = word.word,
                             startMs = word.startMs,
                             endMs = word.endMs,
-                            speaker = word.speaker,
+                            speaker = word.speaker?.let {
+                                speakerIds[it] ?: it
+                            },
                         )
                     },
                 )
@@ -142,7 +260,8 @@ class TranscriptRepository(
                         TranscriptSegmentEntity(
                             transcriptId = transcriptId,
                             position = index,
-                            speaker = segment.speaker,
+                            speaker = speakerIds[segment.speaker]
+                                ?: segment.speaker,
                             startMs = segment.startMs,
                             endMs = segment.endMs,
                             text = segment.text,
@@ -199,6 +318,22 @@ class TranscriptRepository(
         fileName.substringBeforeLast('.', fileName)
             .ifBlank { "Расшифровка" }
 
+    private fun String.toSpeakerId(index: Int): String {
+        val number = Regex("""(\d+)$""")
+            .find(this)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+
+        return "speaker_${number ?: index + 1}"
+    }
+
+    private fun SpeakerEntity.toProfile() = SpeakerProfile(
+        id = speakerId,
+        name = name,
+        color = color,
+    )
+
     private fun TranscriptEntity.toSummary() = TranscriptSummary(
         id = id,
         title = title,
@@ -211,6 +346,12 @@ class TranscriptRepository(
     )
 
     private fun TranscriptWithRelations.toStored(): StoredTranscript {
+        val profiles = speakers
+            .sortedBy { it.position }
+            .map { it.toProfile() }
+
+        val namesById = profiles.associate { it.id to it.name }
+
         val storedWords = words
             .sortedBy { it.position }
             .map {
@@ -250,6 +391,7 @@ class TranscriptRepository(
             language = transcript.language,
             words = storedWords,
             segments = storedSegments,
+            speakers = profiles,
             isEdited = transcript.isEdited,
         )
     }

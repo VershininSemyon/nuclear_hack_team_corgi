@@ -21,12 +21,7 @@ abstract class TranscriptDao {
     abstract fun observeAll(): Flow<List<TranscriptEntity>>
 
     @Transaction
-    @Query(
-        """
-        SELECT * FROM transcripts
-        WHERE id = :id
-        """
-    )
+    @Query("SELECT * FROM transcripts WHERE id = :id")
     abstract fun observeDetail(id: Long): Flow<TranscriptWithRelations?>
 
     @Transaction
@@ -41,13 +36,7 @@ abstract class TranscriptDao {
         audioId: Long,
     ): Flow<List<TranscriptWithRelations>>
 
-    @Query(
-        """
-        SELECT * FROM transcripts
-        WHERE id = :id
-        LIMIT 1
-        """
-    )
+    @Query("SELECT * FROM transcripts WHERE id = :id LIMIT 1")
     abstract suspend fun getById(id: Long): TranscriptEntity?
 
     @Query("SELECT * FROM transcripts WHERE id = :id LIMIT 1")
@@ -57,12 +46,7 @@ abstract class TranscriptDao {
     abstract suspend fun getByAudioId(audioId: Long): List<TranscriptEntity>
 
     @Transaction
-    @Query(
-        """
-        SELECT * FROM transcripts
-        WHERE id = :id
-        """
-    )
+    @Query("SELECT * FROM transcripts WHERE id = :id")
     abstract suspend fun getDetail(id: Long): TranscriptWithRelations?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -100,6 +84,34 @@ abstract class TranscriptDao {
 
     @Query("DELETE FROM transcript_segments WHERE transcriptId = :transcriptId")
     abstract suspend fun deleteSegments(transcriptId: Long)
+
+    @Query(
+        """
+        UPDATE transcript_words
+        SET speaker = :speakerId
+        WHERE transcriptId = :transcriptId
+          AND speaker = :oldSpeaker
+        """
+    )
+    abstract suspend fun replaceWordSpeaker(
+        transcriptId: Long,
+        oldSpeaker: String,
+        speakerId: String,
+    )
+
+    @Query(
+        """
+        UPDATE transcript_segments
+        SET speaker = :speakerId
+        WHERE transcriptId = :transcriptId
+          AND speaker = :oldSpeaker
+        """
+    )
+    abstract suspend fun replaceSegmentSpeaker(
+        transcriptId: Long,
+        oldSpeaker: String,
+        speakerId: String,
+    )
 
     @Transaction
     open suspend fun replaceRelations(
